@@ -684,12 +684,11 @@
     <string name="github_update_checking">正在检查 GitHub…</string>
     <string name="github_update_no_release">暂无可用版本。</string>
     <string name="github_update_no_stable">暂无稳定版。</string>
-    <string name="github_update_current">当前频道没有更新。已安装：%1$d，可用：%2$d。</string>
-    <string name="github_update_available">发现 %1$s，已安装构建号：%2$d。\n\n%3$s</string>
+    <string name="github_update_current">当前频道没有更新。已安装：%1$s，可用：%2$s。</string>
+    <string name="github_update_available">发现 %1$s，已安装版本：%2$s。\n\n%3$s</string>
     <string name="github_update_unsupported">%1$s 提供 ARM64 安装包。</string>
     <string name="github_update_release_page">发布页面</string>
     <string name="github_update_failed">检查更新失败，请稍后重试。</string>
-    <string name="github_update_build">%1$s · 构建号 %2$d</string>
     <string name="route_rule_sets">规则集</string>
     <string name="route_rule_set_add">添加规则集</string>
     <string name="route_rule_set_empty">暂无已保存的规则集。</string>
