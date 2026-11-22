@@ -638,12 +638,11 @@
     <string name="github_update_checking">正在檢查 GitHub…</string>
     <string name="github_update_no_release">目前沒有可用版本。</string>
     <string name="github_update_no_stable">目前沒有穩定版。</string>
-    <string name="github_update_current">目前頻道沒有更新。已安裝：%1$d，可用：%2$d。</string>
-    <string name="github_update_available">發現 %1$s，已安裝的組建編號：%2$d。\n\n%3$s</string>
+    <string name="github_update_current">目前頻道沒有更新。已安裝：%1$s，可用：%2$s。</string>
+    <string name="github_update_available">發現 %1$s，已安裝版本：%2$s。\n\n%3$s</string>
     <string name="github_update_unsupported">%1$s 提供 ARM64 安裝套件。</string>
     <string name="github_update_release_page">版本發布頁面</string>
     <string name="github_update_failed">檢查更新失敗，請稍後再試。</string>
-    <string name="github_update_build">%1$s · 組建編號 %2$d</string>
     <string name="route_rule_sets">規則集</string>
     <string name="route_rule_set_add">新增規則集</string>
     <string name="route_rule_set_empty">目前沒有已儲存的規則集。</string>
