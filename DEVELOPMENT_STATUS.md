@@ -18,11 +18,12 @@ GitHub 默认分支为 `lauritz/starifly-core-1.14`（`62731eb`），应用诊�
 
 ## 2. 当前版本与构建状态
 
-`1.0.10-STABLE`（25940）實機驗收通過，待正式發布
+`1.0.10-STABLE`（25940）實機驗收通過，已正式發布。[發布頁](https://github.com/LauritzWu/Veyr/releases/tag/v1.0.10-stable.25940)
 
 | 渠道 | 显示版本 | Android versionCode | 构建与源码 |
 | --- | --- | ---: | --- |
-| GitHub 最新稳定版 | 1.0.9-STABLE | 25920 | ARM64，签名构建与实机升级通过 |
+| GitHub 最新稳定版 | 1.0.10-STABLE | 25940 | ARM64，签名构建与实机验收通过，[发布页](https://github.com/LauritzWu/Veyr/releases/tag/v1.0.10-stable.25940) |
+| GitHub 历史稳定版 | 1.0.9-STABLE | 25920 | ARM64，签名构建与实机升级通过 |
 | GitHub 历史稳定版 | 1.0.6-STABLE | 25880 | ARM64，S24 Ultra 实机与发布校验通过 |
 | GitHub 历史稳定版 | 1.0.5-STABLE | 25865 | ARM64，`42c5bb5`，S24 Ultra 验收及发布校验通过 |
 | GitHub 历史稳定版 | 1.0.4-STABLE | 25840 | ARM64，`c7b112b`，S24 Ultra 验收及发布校验通过 |
@@ -258,4 +259,5 @@ GitHub 默认分支为 `lauritz/starifly-core-1.14`（`62731eb`），应用诊�
 - [x] `1.0.10-BETA.3` 发布后实机升级验证：用户确认「关于」显示版本正确，订阅、节点及路由规则均保留。此次反馈未单独确认下载入口及稳定频道筛选。
 - [x] `1.0.10-STABLE`（25940）签名 ARM64 候选构建成功，已生成发布草稿。[构建](https://github.com/LauritzWu/Veyr/actions/runs/44900914021) · [草稿](https://github.com/LauritzWu/Veyr/releases/tag/untagged-560341b8072a660e6c0d)
 - [x] 用户实测通过 `1.0.10-STABLE`（25940）：关于页版本和构建号正确，覆盖安装保留订阅、节点和路由规则，One UI 显示缩嘴鹰头且磁贴可正常连接和断开 VPN。
-- [ ] 发布已验收的 `1.0.10-STABLE` 草稿并验证稳定频道应用内升级。
+- [x] 正式发布 `1.0.10-STABLE`（25940），GitHub 标记为 Latest。
+- [ ] 验证稳定频道应用内升级至 `1.0.10-STABLE`（25940）。
