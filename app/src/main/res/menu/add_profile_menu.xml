@@ -11,7 +11,7 @@
         android:id="@+id/action_add"
         android:icon="@drawable/ic_action_note_add"
         android:title="@string/add_profile"
-        app:showAsAction="ifRoom">
+        app:showAsAction="always">
         <menu>
             <item
                 android:id="@+id/action_scan_qr_code"
@@ -90,18 +90,15 @@
     </item>
 
     <item
-        android:id="@+id/action_update_subscription"
-        android:icon="@drawable/ic_baseline_refresh_24"
-        android:title="@string/update_current_subscription"
-        android:visible="false"
-        app:showAsAction="ifRoom" />
-
-    <item
         android:id="@+id/action_misc"
         android:icon="@drawable/ic_baseline_more_vert_24"
         android:title=""
         app:showAsAction="always">
         <menu>
+            <item
+                android:id="@+id/action_update_subscription"
+                android:title="@string/update_current_subscription"
+                android:visible="false" />
             <item
                 android:id="@+id/action_clear_traffic_statistics"
                 android:title="@string/clear_traffic_statistics" />
