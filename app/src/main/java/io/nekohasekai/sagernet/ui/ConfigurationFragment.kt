@@ -302,6 +302,10 @@ class ConfigurationFragment @JvmOverloads constructor(
     }
 
     val updateSelectedCallback = object : ViewPager2.OnPageChangeCallback() {
+        override fun onPageSelected(position: Int) {
+            updateSubscriptionAction(adapter.groupList.getOrNull(position))
+        }
+
         override fun onPageScrolled(
             position: Int, positionOffset: Float, positionOffsetPixels: Int
         ) {
@@ -309,6 +313,11 @@ class ConfigurationFragment @JvmOverloads constructor(
                 DataStore.selectedGroup = adapter.groupList[position].id
             }
         }
+    }
+
+    private fun updateSubscriptionAction(group: ProxyGroup?) {
+        toolbar.menu.findItem(R.id.action_update_subscription)?.isVisible =
+            group?.type == GroupType.SUBSCRIPTION
     }
 
     private var profileQuery = ""
@@ -771,7 +780,9 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
 
             R.id.action_update_subscription -> {
-                val group = DataStore.currentGroup()
+                val groupId = adapter.groupList.getOrNull(groupPager.currentItem)?.id
+                    ?: return true
+                val group = SagerDatabase.groupDao.getById(groupId) ?: return true
                 if (group.type != GroupType.SUBSCRIPTION) {
                     snackbar(R.string.group_not_subscription).show()
                     Logs.e("onMenuItemClick: Group(${group.displayName()}) is not subscription")
@@ -1345,6 +1356,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                                 tabLayout.isGone = hideTab
                                 toolbar.elevation = if (hideTab) 0F else dp2px(4).toFloat()
                                 if (!select) {
+                                    updateSubscriptionAction(groupList.getOrNull(groupPager.currentItem))
                                     groupPager.registerOnPageChangeCallback(updateSelectedCallback)
                                 }
                             }
@@ -1400,6 +1412,7 @@ class ConfigurationFragment @JvmOverloads constructor(
             tabLayout.post {
                 groupList.removeAt(index)
                 notifyItemRemoved(index)
+                updateSubscriptionAction(groupList.getOrNull(groupPager.currentItem))
             }
         }
 
@@ -1409,6 +1422,9 @@ class ConfigurationFragment @JvmOverloads constructor(
 
             tabLayout.post {
                 tabLayout.getTabAt(index)?.text = group.displayName()
+                if (groupList.getOrNull(groupPager.currentItem)?.id == group.id) {
+                    updateSubscriptionAction(group)
+                }
             }
         }
 

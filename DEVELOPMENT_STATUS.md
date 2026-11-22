@@ -261,3 +261,21 @@ GitHub 默认分支为 `lauritz/starifly-core-1.14`（`62731eb`），应用诊�
 - [x] 用户实测通过 `1.0.10-STABLE`（25940）：关于页版本和构建号正确，覆盖安装保留订阅、节点和路由规则，One UI 显示缩嘴鹰头且磁贴可正常连接和断开 VPN。
 - [x] 正式发布 `1.0.10-STABLE`（25940），GitHub 标记为 Latest。
 - [ ] 验证稳定频道应用内升级至 `1.0.10-STABLE`（25940）。
+
+### 訂閱刷新回歸
+
+使用 [測試訂閱伺服器](buildScript/test-subscription-refresh.py) 在同一條 URL 切換回應。範例節點只用於匯入與刷新測試，實際連線另用可用的 Sub-Store 節點驗證。
+
+1. 在電腦執行 `Set-Content scenario.txt baseline`，再執行 `python buildScript/test-subscription-refresh.py --scenario-file scenario.txt`。
+2. 以 USB 連接測試手機，執行 `adb reverse tcp:8765 tcp:8765`。在 Veyr 建立獨立的測試訂閱群組，地址填 `http://127.0.0.1:8765/subscription`。測試時保持 VPN 斷線，按提示確認刷新本機 HTTP 訂閱。
+3. 從訂閱分頁工具列刷新。切換回應時，在另一個終端機執行 `Set-Content scenario.txt <情境>`。測試完畢後執行 `adb reverse --remove tcp:8765` 並停止測試伺服器。
+
+| 情境 | 實機驗收 |
+| --- | --- |
+| `baseline` | 匯入 VLESS 和 Hysteria2。選取 Fixture-VLESS，建立一條指向它的測試路由。切到手動群組時刷新入口隱藏。 |
+| `rename` | 摘要顯示變更 1、新增 0、移除 0。VLESS 改名後仍是所選節點，既有測試路由仍指向該節點。 |
+| `unavailable` | 同一 URL 回應 HTTP 503。顯示下載失敗，保留節點清單、選取狀態、路由與上次成功時間。 |
+| `invalid` | 同一 URL 回應 HTTP 200，內容沒有可用節點。顯示內容錯誤，保留與前一項相同的狀態。 |
+| `remove` | 先取消確認，兩個節點與上次成功時間仍保留。再次刷新並確認後只移除 VLESS，摘要顯示移除 1，並提示原選取節點被移除。 |
+
+已用本機 HTTP 請求驗證五種回應及改名前後的連線參數。Veyr 實機測試待執行。
