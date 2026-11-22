@@ -39,6 +39,7 @@ import androidx.preference.PreferenceDataStore
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.card.MaterialCardView
@@ -1710,6 +1711,26 @@ class ConfigurationFragment @JvmOverloads constructor(
             if (!::proxyGroup.isInitialized) return
 
             configurationListView = view.findViewById(R.id.configuration_list)
+            val refresh = view.findViewById<SwipeRefreshLayout>(R.id.profile_refresh)
+            refresh.isEnabled = !select && proxyGroup.type == GroupType.SUBSCRIPTION
+            refresh.setOnChildScrollUpCallback { _, _ ->
+                configurationListView.canScrollVertically(-1)
+            }
+            refresh.setOnRefreshListener {
+                val groupId = proxyGroup.id
+                viewLifecycleOwner.lifecycleScope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            val group = SagerDatabase.groupDao.getById(groupId)
+                            if (group?.type == GroupType.SUBSCRIPTION && groupId !in GroupUpdater.updating) {
+                                GroupUpdater.executeUpdate(group, true)
+                            }
+                        }
+                    } finally {
+                        refresh.isRefreshing = false
+                    }
+                }
+            }
             setupLayoutManager()
             configurationListView.layoutManager = layoutManager
             emptyStateObserver?.let { adapter?.unregisterAdapterDataObserver(it) }
@@ -2257,6 +2278,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                 val newProfileMap = newProfiles.associateBy { it.id }
 
                 configurationListView.post {
+                    view?.findViewById<SwipeRefreshLayout>(R.id.profile_refresh)?.isEnabled =
+                        !select && proxyGroup.type == GroupType.SUBSCRIPTION
                     val newProfileIds = newProfiles.filter { it.matchesQuery() }.map { it.id }
                     val selectedProfileIndex = if (selected) {
                         newProfileIds.indexOf(selectedItem?.id ?: DataStore.selectedProxy)
