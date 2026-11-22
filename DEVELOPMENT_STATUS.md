@@ -254,3 +254,5 @@ GitHub 默认分支为 `lauritz/starifly-core-1.14`（`62731eb`），应用诊�
 - [x] 用户在 One UI 实测 `1.0.10-BETA.3`（25935）：点击快速设置磁贴连接和断开 VPN 均正常。
 - [x] `1.0.10-BETA.3`（25935）已发布为 GitHub Pre-release，使用 One UI 实测通过的签名 ARM64 APK。[发布页](https://github.com/LauritzWu/Veyr/releases/tag/v1.0.10-beta.3.25935)
 - [x] `1.0.10-BETA.3` 发布后实机升级验证：用户确认「关于」显示版本正确，订阅、节点及路由规则均保留。此次反馈未单独确认下载入口及稳定频道筛选。
+- [x] `1.0.10-STABLE`（25940）签名 ARM64 候选构建成功，已生成发布草稿。[构建](https://github.com/LauritzWu/Veyr/actions/runs/44900914021) · [草稿](https://github.com/LauritzWu/Veyr/releases/tag/untagged-560341b8072a660e6c0d)
+- [ ] 待实机验证稳定候选的版本显示、覆盖安装后的配置保留，以及 One UI 鹰头磁贴连线和断线。
