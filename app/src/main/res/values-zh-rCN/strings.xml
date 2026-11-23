@@ -664,11 +664,12 @@
     <string name="subscription_refresh_content_error">订阅内容中没有可识别的节点。</string>
     <string name="subscription_refresh_filter_error">订阅筛选表达式无效。</string>
     <string name="subscription_refresh_empty_filter">应用订阅筛选等设置后没有剩余节点。</string>
-    <string name="subscription_refresh_settings_changed">更新期间订阅设置发生变化，请重试。</string>
+    <string name="subscription_refresh_settings_changed">更新期间订阅设置或相关路由规则发生变化，请重试。</string>
     <string name="subscription_refresh_storage_error">无法保存订阅更新。</string>
     <string name="subscription_refresh_failure">%1$s 更新失败。%2$s 已保留原有节点。</string>
     <string name="subscription_refresh_pending_removal">有待确认的更新</string>
     <string name="subscription_refresh_remove_preview">将移除以下节点：\n%1$s</string>
+    <string name="subscription_refresh_affected_rules">以下路由规则引用的出站将失效。如需先调整规则，请取消以保留节点。\n%1$s</string>
     <string name="subscription_refresh_current_node">%1$s（当前选中）</string>
     <string name="subscription_refresh_apply">应用更新</string>
     <string name="subscription_refresh_summary">%1$s · 新增 %2$d · 变更 %3$d · 移除 %4$d</string>

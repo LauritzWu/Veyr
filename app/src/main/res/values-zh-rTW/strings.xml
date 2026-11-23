@@ -681,4 +681,9 @@
     <string name="active_connection_profile">已連線 · %1$s</string>
     <string name="subscription_refresh_unchanged_count">%1$s · 已是最新 · %2$d 個節點</string>
     <string name="subscription_refresh_details">查看明細</string>
+    <string name="subscription_refresh_settings_changed">更新期間訂閱設定或相關路由規則發生變更，請重試。</string>
+    <string name="subscription_refresh_remove_preview">將移除以下節點：\n%1$s</string>
+    <string name="subscription_refresh_affected_rules">以下路由規則指定的出站將失效。若要先調整規則，請取消以保留節點。\n%1$s</string>
+    <string name="subscription_refresh_current_node">%1$s（目前選取）</string>
+    <string name="subscription_refresh_apply">套用更新</string>
 </resources>
