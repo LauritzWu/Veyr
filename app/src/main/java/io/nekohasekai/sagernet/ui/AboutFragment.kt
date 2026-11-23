@@ -102,6 +102,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
         private fun fetchUpdate(beta: Boolean) {
             val context = requireContext()
             val installed = installedBuild(context)
+            val installedVersion = SagerNet.appVersionNameForDisplay
             val progress = MaterialAlertDialogBuilder(context)
                 .setMessage(R.string.github_update_checking)
                 .create()
@@ -115,15 +116,15 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                     if (release == null) {
                         dialog.setMessage(if (beta) R.string.github_update_no_release else R.string.github_update_no_stable)
                     } else if (!ReleaseUpdate.isUpgrade(release.code, installed)) {
-                        dialog.setMessage(getString(R.string.github_update_current, installed, release.code))
+                        dialog.setMessage(getString(R.string.github_update_current, installedVersion, release.versionName))
                     } else {
-                        dialog.setMessage(getString(R.string.github_update_available, release.title, installed, release.notes))
+                        dialog.setMessage(getString(R.string.github_update_available, release.versionName, installedVersion))
                         if ("arm64-v8a" in Build.SUPPORTED_ABIS) {
                             dialog.setPositiveButton(R.string.github_update_download) { _, _ ->
                                 downloadAndInstall(release)
                             }
                         } else {
-                            dialog.setMessage(getString(R.string.github_update_unsupported, release.title))
+                            dialog.setMessage(getString(R.string.github_update_unsupported, release.versionName))
                         }
                         dialog.setNeutralButton(R.string.github_update_release_page) { _, _ ->
                             context.launchCustomTab("$PROJECT_URL/releases/tag/${release.tag}")
@@ -211,9 +212,8 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
 
         private data class Release(
             val tag: String,
-            val title: String,
+            val versionName: String,
             val code: Long,
-            val notes: String,
             val apkName: String,
         )
 
@@ -245,8 +245,8 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                             .filter { it.optString("state") == "uploaded" }
                             .map { it.optString("name") }
                     } ?: continue
-                    val title = item.optString("name", "").takeIf { it.isNotBlank() } ?: tag
-                    latest = Release(tag, title, candidate.code, item.optString("body").take(4000), candidate.apkName)
+                    val versionName = tag.removePrefix("v").substringBeforeLast('.').uppercase()
+                    latest = Release(tag, versionName, candidate.code, candidate.apkName)
                 }
                 page++
             } while (releases.length() == 100)
@@ -278,7 +278,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                             MaterialAboutActionItem.Builder()
                                 .icon(R.drawable.ic_baseline_update_24)
                                 .text(R.string.app_version)
-                                .subText(getString(R.string.github_update_build, SagerNet.appVersionNameForDisplay, installedBuild(activityContext)))
+                                .subText(SagerNet.appVersionNameForDisplay)
                                 .build())
                         .addItem(
                             MaterialAboutActionItem.Builder()
