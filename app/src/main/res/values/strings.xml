@@ -769,12 +769,11 @@
     <string name="github_update_checking">Checking GitHub…</string>
     <string name="github_update_no_release">No compatible release is available.</string>
     <string name="github_update_no_stable">No stable release is available.</string>
-    <string name="github_update_current">No newer build in this channel. Installed: %1$d. Available: %2$d.</string>
-    <string name="github_update_available">%1$s is available. Installed build: %2$d.\n\n%3$s</string>
+    <string name="github_update_current">No newer version in this channel. Installed: %1$s. Available: %2$s.</string>
+    <string name="github_update_available">%1$s is available. Installed: %2$s.</string>
     <string name="github_update_unsupported">%1$s is available for ARM64 devices.</string>
     <string name="github_update_release_page">Release page</string>
     <string name="github_update_failed">Could not check for updates. Please try again.</string>
-    <string name="github_update_build">%1$s · Build %2$d</string>
     <string name="route_rule_sets">Rule sets</string>
     <string name="route_rule_set_add">Add rule set</string>
     <string name="route_rule_set_empty">No saved rule sets.</string>
