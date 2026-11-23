@@ -181,7 +181,8 @@ class ConfigurationFragment @JvmOverloads constructor(
     private data class ProfileStateSnapshot(
         val selectedProxy: Long,
         val currentProfile: Long,
-        val serviceStarted: Boolean,
+        val serviceState: BaseService.State,
+        val activeProfileName: String?,
     )
 
     private val profileStateRequests = Channel<Long>(Channel.CONFLATED)
@@ -210,10 +211,15 @@ class ConfigurationFragment @JvmOverloads constructor(
             for (generation in profileStateRequests) {
                 val snapshot = try {
                     withContext(Dispatchers.IO) {
+                        val state = DataStore.serviceState
+                        val activeId = DataStore.currentProfile
                         ProfileStateSnapshot(
                             selectedProxy = selectedItem?.id ?: DataStore.selectedProxy,
-                            currentProfile = DataStore.currentProfile,
-                            serviceStarted = DataStore.serviceState.started,
+                            currentProfile = activeId,
+                            serviceState = state,
+                            activeProfileName = if (!select && state.connected && activeId > 0L) {
+                                SagerDatabase.proxyDao.getById(activeId)?.displayName()
+                            } else null,
                         )
                     }
                 } catch (e: CancellationException) {
@@ -229,8 +235,18 @@ class ConfigurationFragment @JvmOverloads constructor(
                 updateProfileStateSnapshots(
                     snapshot.selectedProxy,
                     snapshot.currentProfile,
-                    snapshot.serviceStarted,
+                    snapshot.serviceState.started,
                 )
+                if (!select) {
+                    view?.findViewById<TextView>(R.id.active_connection)?.text = when (snapshot.serviceState) {
+                        BaseService.State.Connected -> snapshot.activeProfileName?.takeIf { it.isNotBlank() }?.let {
+                            getString(R.string.active_connection_profile, it)
+                        } ?: getString(R.string.active_connection_connected)
+                        BaseService.State.Connecting -> getString(R.string.connecting)
+                        BaseService.State.Stopping -> getString(R.string.stopping)
+                        else -> getString(R.string.active_connection_offline)
+                    }
+                }
                 profileStateInitialized.complete(Unit)
             }
         }
@@ -345,6 +361,8 @@ class ConfigurationFragment @JvmOverloads constructor(
         super.onViewCreated(view, savedInstanceState)
 
         if (!select) {
+            view.findViewById<TextView>(R.id.active_connection).visibility = View.VISIBLE
+            refreshProfileState()
             toolbar.inflateMenu(R.menu.add_profile_menu)
             toolbar.menu.findItem(R.id.action_global_mode)?.isChecked = DataStore.globalMode
             toolbar.setOnMenuItemClickListener(this)

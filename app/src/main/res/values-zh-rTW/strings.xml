@@ -676,4 +676,7 @@
     <string name="github_update_retry">重試</string>
     <string name="logcat_history">查看保留的日誌（最多 256 KiB）</string>
     <string name="log_buffer_size">日誌緩衝區大小（KiB）</string>
+    <string name="active_connection_offline">未連線</string>
+    <string name="active_connection_connected">已連線</string>
+    <string name="active_connection_profile">已連線 · %1$s</string>
 </resources>

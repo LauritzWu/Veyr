@@ -803,4 +803,7 @@
     <string name="github_update_retry">Retry</string>
     <string name="logcat_history">View retained log (up to 256 KiB)</string>
     <string name="log_buffer_size">Log buffer size (KiB)</string>
+    <string name="active_connection_offline">Disconnected</string>
+    <string name="active_connection_connected">Connected</string>
+    <string name="active_connection_profile">Connected · %1$s</string>
 </resources>

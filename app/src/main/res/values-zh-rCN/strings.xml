@@ -718,4 +718,7 @@
     <string name="github_update_retry">重试</string>
     <string name="logcat_history">查看保留的日志（最多 256 KiB）</string>
     <string name="log_buffer_size">日志缓冲区大小（KiB）</string>
+    <string name="active_connection_offline">未连接</string>
+    <string name="active_connection_connected">已连接</string>
+    <string name="active_connection_profile">已连接 · %1$s</string>
 </resources>
