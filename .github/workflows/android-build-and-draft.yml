@@ -1,5 +1,7 @@
 name: Build signed Android APK and prepare draft
 on:
+  push:
+    branches: ['candidate/version-display-beta8']
   workflow_dispatch:
     inputs:
       version:
@@ -23,10 +25,10 @@ permissions:
 concurrency:
   group: android-release-draft
 env:
-  BASE_VERSION: ${{ inputs.version }}
-  CHANNEL: ${{ inputs.channel }}
-  BETA_ITERATION: ${{ inputs.beta_iteration }}
-  REQUESTED_BUILD_CODE: ${{ inputs.build_code }}
+  BASE_VERSION: ${{ inputs.version || '1.0.11' }}
+  CHANNEL: ${{ inputs.channel || 'beta' }}
+  BETA_ITERATION: ${{ github.event_name == 'push' && '8' || inputs.beta_iteration }}
+  REQUESTED_BUILD_CODE: ${{ inputs.build_code || '26485' }}
 jobs:
   libcore:
     name: Native Build (LibCore)
@@ -267,7 +269,7 @@ jobs:
             printf 'Veyr %s\n\n' "$version_name"
             printf '已有 Veyr 的用户可以直接覆盖安装。\n\n'
             printf '## 更新内容\n\n'
-            printf '<!-- 发布前在这里填写本次更新内容。 -->\n\n'
+            printf '%s\n\n' '关于和更新检查只显示版本号。完整配置详情显示默认出站和 DNS，Hysteria 跳端口保留独立端口及范围。'
             printf '[构建记录](https://github.com/%s/actions/runs/%s)\n' "$GH_REPO" "$run_id"
           } > release-notes.md
 
