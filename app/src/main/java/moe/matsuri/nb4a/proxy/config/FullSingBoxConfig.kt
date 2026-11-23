@@ -74,15 +74,22 @@ internal fun fullSingBoxDetails(contents: String, choices: String?): FullSingBox
     val route = config.get("route")?.takeIf { it.isJsonObject }?.asJsonObject
     val dns = config.get("dns")?.takeIf { it.isJsonObject }?.asJsonObject
     return FullSingBoxDetails(
-        finalOutbound = route?.stringValue("final")?.takeIf(String::isNotBlank),
+        finalOutbound = route?.stringValue("final")?.takeIf(String::isNotEmpty)
+            ?: config.firstEntryTag("outbounds"),
         selectors = config.selectors().map { group ->
             group to (saved?.stringValue(group.tag)?.takeIf { it in group.members } ?: group.default)
         },
         dnsServers = dns?.taggedEntries("servers").orEmpty(),
-        finalDnsServer = dns?.stringValue("final")?.takeIf(String::isNotBlank),
+        finalDnsServer = dns?.stringValue("final")?.takeIf(String::isNotEmpty)
+            ?: dns?.firstEntryTag("servers"),
         ruleSets = route?.taggedEntries("rule_set").orEmpty(),
         routeRuleCount = route?.get("rules")?.takeIf { it.isJsonArray }?.asJsonArray?.size() ?: 0,
     )
+}
+
+private fun JsonObject.firstEntryTag(key: String): String? {
+    val first = get(key)?.takeIf { it.isJsonArray }?.asJsonArray?.firstOrNull()
+    return first?.takeIf { it.isJsonObject }?.asJsonObject?.stringValue("tag")?.takeIf(String::isNotBlank)
 }
 
 private fun JsonObject.taggedEntries(key: String): List<String> =
