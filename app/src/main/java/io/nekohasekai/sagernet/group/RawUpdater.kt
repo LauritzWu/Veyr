@@ -64,7 +64,6 @@ object RawUpdater : GroupUpdater() {
                 val response = Libcore.newHttpClient().apply {
                     trySocks5(DataStore.mixedPort, DataStore.mixedInboundUser, DataStore.mixedInboundPass)
                     tryH3Direct()
-                    preferDirectTLS()
                     if (DataStore.appTLSVersion == "1.3") restrictedTLS()
                 }.newRequest().apply {
                     if (DataStore.allowInsecureOnRequest) allowInsecure()

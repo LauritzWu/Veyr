@@ -8,14 +8,16 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"github.com/sagernet/quic-go/http3"
 )
 
 func TestSubscriptionDirectHTTPS(t *testing.T) {
 	var requests atomic.Int32
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
-		if r.ProtoMajor != 2 {
-			http.Error(w, "HTTP/2 required", http.StatusHTTPVersionNotSupported)
+		if r.ProtoMajor != 3 {
+			http.Error(w, "HTTP/3 required", http.StatusHTTPVersionNotSupported)
 			return
 		}
 		if r.Header.Get("User-Agent") != "Veyr-Test" || r.URL.Query().Get("token") != "test-share" {
@@ -28,9 +30,17 @@ func TestSubscriptionDirectHTTPS(t *testing.T) {
 		}
 		fmt.Fprint(w, "fixture-subscription")
 	}))
-	server.EnableHTTP2 = true
 	server.StartTLS()
 	defer server.Close()
+
+	packet, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer packet.Close()
+	h3 := &http3.Server{TLSConfig: server.TLS.Clone(), Handler: server.Config.Handler}
+	defer h3.Close()
+	go h3.Serve(packet)
 
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
@@ -52,11 +62,10 @@ func TestSubscriptionDirectHTTPS(t *testing.T) {
 	client.tls.RootCAs = server.Client().Transport.(*http.Transport).TLSClientConfig.RootCAs
 	client.TrySocks5(int32(listener.Addr().(*net.TCPAddr).Port), "", "")
 	client.TryH3Direct()
-	client.PreferDirectTLS()
 
 	fetch := func(path string) (HTTPResponse, error) {
 		request := client.NewRequest()
-		if err := request.SetURL(server.URL + path + "?token=test-share"); err != nil {
+		if err := request.SetURL("https://" + packet.LocalAddr().String() + path + "?token=test-share"); err != nil {
 			t.Fatal(err)
 		}
 		request.SetUserAgent("Veyr-Test")
