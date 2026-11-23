@@ -45,7 +45,7 @@ import io.nekohasekai.sagernet.widget.ListListener
 import libcore.Libcore
 import moe.matsuri.nb4a.plugin.Plugins
 import androidx.core.net.toUri
-import io.nekohasekai.sagernet.SagerNet
+import io.nekohasekai.sagernet.BuildConfig
 
 class AboutFragment : ToolbarFragment(R.layout.layout_about) {
 
@@ -115,9 +115,9 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                     if (release == null) {
                         dialog.setMessage(if (beta) R.string.github_update_no_release else R.string.github_update_no_stable)
                     } else if (!ReleaseUpdate.isUpgrade(release.code, installed)) {
-                        dialog.setMessage(getString(R.string.github_update_current, installed, release.code))
+                        dialog.setMessage(getString(R.string.github_update_current, BuildConfig.VERSION_NAME, release.title))
                     } else {
-                        dialog.setMessage(getString(R.string.github_update_available, release.title, installed, release.notes))
+                        dialog.setMessage(getString(R.string.github_update_available, release.title, BuildConfig.VERSION_NAME, release.notes))
                         if ("arm64-v8a" in Build.SUPPORTED_ABIS) {
                             dialog.setPositiveButton(R.string.github_update_download) { _, _ ->
                                 downloadAndInstall(release)
@@ -245,7 +245,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                             .filter { it.optString("state") == "uploaded" }
                             .map { it.optString("name") }
                     } ?: continue
-                    val title = item.optString("name", "").takeIf { it.isNotBlank() } ?: tag
+                    val title = tag.removePrefix("v").substringBeforeLast('.').uppercase()
                     latest = Release(tag, title, candidate.code, item.optString("body").take(4000), candidate.apkName)
                 }
                 page++
@@ -278,7 +278,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                             MaterialAboutActionItem.Builder()
                                 .icon(R.drawable.ic_baseline_update_24)
                                 .text(R.string.app_version)
-                                .subText(getString(R.string.github_update_build, SagerNet.appVersionNameForDisplay, installedBuild(activityContext)))
+                                .subText(BuildConfig.VERSION_NAME)
                                 .build())
                         .addItem(
                             MaterialAboutActionItem.Builder()

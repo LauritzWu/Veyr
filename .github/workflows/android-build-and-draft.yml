@@ -135,7 +135,12 @@ jobs:
           else
             [[ "$CHANNEL" == stable && -z "$BETA_ITERATION" ]]
           fi
-          sed -i "s/^VERSION_NAME=.*/VERSION_NAME=$BASE_VERSION-${CHANNEL^^}/" nb4a.properties
+          version_name="$BASE_VERSION-${CHANNEL^^}"
+          if [[ "$CHANNEL" == beta ]]; then
+            version_name="$version_name.$BETA_ITERATION"
+          fi
+          echo "APK_VERSION_NAME=$version_name" >> "$GITHUB_ENV"
+          sed -i "s/^VERSION_NAME=.*/VERSION_NAME=$version_name/" nb4a.properties
           sed -i "s/^VERSION_CODE=.*/VERSION_CODE=$((REQUESTED_BUILD_CODE / 5))/" nb4a.properties
           : "${JC_PREVIEW_KEYSTORE:?Missing preview keystore}"
           : "${JC_PREVIEW_KEYSTORE_PASS:?Missing preview keystore password}"
@@ -159,7 +164,7 @@ jobs:
           "$tools/aapt" dump badging "${apks[0]}" > apk-badging.txt
           grep -F "package: name='top.lauritz.jc.uipreview.debug'" apk-badging.txt
           grep -Fx "application-label:'Veyr'" apk-badging.txt
-          grep -F "versionName='$BASE_VERSION-${CHANNEL^^}'" apk-badging.txt
+          grep -F "versionName='$APK_VERSION_NAME'" apk-badging.txt
           build_code=$(sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" apk-badging.txt)
           test "$build_code" -eq "$REQUESTED_BUILD_CODE"
           test "$build_code" -gt 25800
@@ -209,7 +214,7 @@ jobs:
             asset="veyr-$BASE_VERSION-stable-arm64-v8a.apk"
           else
             [[ "$CHANNEL" == beta && "$BETA_ITERATION" =~ ^[1-9][0-9]*$ ]]
-            version_name="$BASE_VERSION-BETA"
+            version_name="$BASE_VERSION-BETA.$BETA_ITERATION"
             release_tag="v$BASE_VERSION-beta.$BETA_ITERATION.$BUILD_CODE"
             if [[ "$BETA_ITERATION" == 1 ]]; then
               asset="veyr-$BASE_VERSION-beta-arm64-v8a.apk"
@@ -220,9 +225,6 @@ jobs:
           fi
 
           release_title="Veyr $version_name"
-          if [[ "$CHANNEL" == beta && "$BETA_ITERATION" != 1 ]]; then
-            release_title="$release_title.$BETA_ITERATION"
-          fi
           latest_before=$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name)
           max_build=$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" |
             jq -s '[.[][] | .tag_name | select(test("^v[0-9]+[.][0-9]+[.][0-9]+-(stable|preview|beta[.][0-9]+)[.][0-9]+$")) | split(".") | last | tonumber] | max // 0')
@@ -262,7 +264,7 @@ jobs:
           download_base="https://github.com/$GH_REPO/releases/download/$release_tag"
           {
             printf '**[下载 ARM64 APK](%s/%s)** · [SHA-256](%s/SHA256SUMS)\n\n' "$download_base" "$asset" "$download_base"
-            printf 'Veyr %s · Android 构建号 %s · %s\n\n' "$version_name" "$BUILD_CODE" "$CHANNEL"
+            printf 'Veyr %s\n\n' "$version_name"
             printf '已有 Veyr 的用户可以直接覆盖安装。\n\n'
             printf '## 更新内容\n\n'
             printf '<!-- 发布前在这里填写本次更新内容。 -->\n\n'
