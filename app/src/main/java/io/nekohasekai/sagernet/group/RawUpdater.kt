@@ -208,10 +208,15 @@ object RawUpdater : GroupUpdater() {
                     return@withTransaction null
                 }
                 if (byUser && (toDelete.isNotEmpty() || approved != null)) {
+                    val nodes = toDelete.associate { it.id to it.displayName() }
+                    val affectedRules = if (nodes.isEmpty()) emptyList() else {
+                        SagerDatabase.rulesDao.allRules().filter { it.outbound in nodes }
+                    }
                     val preview = RemovalPreview(
                         latest.displayName(),
-                        toDelete.associate { it.id to it.displayName() },
-                        selectedId.takeIf { id -> toDelete.any { it.id == id } }
+                        nodes,
+                        selectedId.takeIf { it in nodes },
+                        affectedRules
                     )
                     if (approved == null) {
                         pendingRemoval = preview
@@ -268,7 +273,13 @@ object RawUpdater : GroupUpdater() {
             val nodes = preview.nodes
             val group = SagerDatabase.groupDao.getById(proxyGroup.id) ?: return
             val selectedIndex = nodes.keys.indexOfFirst { it == preview.selectedId }
-            if (userInterface?.confirmSubscriptionRemoval(group, nodes.values.toList(), selectedIndex) != true) return
+            val affectedRules = preview.affectedRules.map { rule ->
+                rule.displayName() to nodes.getValue(rule.outbound)
+            }
+            val confirmed = userInterface?.confirmSubscriptionRemoval(
+                group, nodes.values.toList(), selectedIndex, affectedRules
+            ) == true
+            if (!confirmed) return
             applyChanges(preview) ?: return
         }
 
@@ -284,7 +295,8 @@ object RawUpdater : GroupUpdater() {
     private data class RemovalPreview(
         val groupName: String,
         val nodes: Map<Long, String>,
-        val selectedId: Long?
+        val selectedId: Long?,
+        val affectedRules: List<RuleEntity>
     )
 
     private fun AbstractBean.subscriptionConnection(): AbstractBean = clone().apply {

@@ -749,11 +749,12 @@
     <string name="subscription_refresh_content_error">The subscription did not contain any supported nodes.</string>
     <string name="subscription_refresh_filter_error">The subscription filter is invalid.</string>
     <string name="subscription_refresh_empty_filter">No nodes remain after applying the subscription settings.</string>
-    <string name="subscription_refresh_settings_changed">The subscription settings changed during the update. Try again.</string>
+    <string name="subscription_refresh_settings_changed">The subscription settings or related routing rules changed during the update. Try again.</string>
     <string name="subscription_refresh_storage_error">Could not save the subscription update.</string>
     <string name="subscription_refresh_failure">%1$s: Update failed. %2$s Existing nodes were kept.</string>
     <string name="subscription_refresh_pending_removal">Update awaiting confirmation</string>
     <string name="subscription_refresh_remove_preview">Nodes to remove:\n%1$s</string>
+    <string name="subscription_refresh_affected_rules">These routing rules will lose their outbound. Cancel to keep the nodes while you change the rules.\n%1$s</string>
     <string name="subscription_refresh_current_node">%1$s (currently selected)</string>
     <string name="subscription_refresh_apply">Apply update</string>
     <string name="subscription_refresh_summary">%1$s · Added %2$d · Changed %3$d · Removed %4$d</string>

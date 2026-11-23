@@ -17,7 +17,10 @@ object GroupManager {
     interface Interface {
         suspend fun confirm(message: String): Boolean
         suspend fun confirmSubscriptionRemoval(
-            group: ProxyGroup, nodes: List<String>, selectedIndex: Int
+            group: ProxyGroup,
+            nodes: List<String>,
+            selectedIndex: Int,
+            affectedRules: List<Pair<String, String>>
         ): Boolean
         suspend fun alert(message: String)
         suspend fun onUpdateSuccess(
