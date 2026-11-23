@@ -27,21 +27,40 @@
         android:ellipsize="end"
         android:visibility="gone" />
 
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/group_tab"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/chromeSurface"
-        android:elevation="0dp"
-        android:visibility="gone"
-        app:tabIndicatorColor="?tabIndicatorColor"
-        app:tabIndicatorFullWidth="false"
-        app:tabMode="scrollable"
-        app:tabPaddingStart="16dp"
-        app:tabRippleColor="?tabRippleColor"
-        app:tabSelectedTextColor="?tabSelectedTextColor"
-        app:tabTextColor="?tabTextColor"
-        app:tabUnboundedRipple="false" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:background="?attr/chromeSurface">
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/group_tab"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:background="?attr/chromeSurface"
+            android:elevation="0dp"
+            android:visibility="gone"
+            app:tabIndicatorColor="?tabIndicatorColor"
+            app:tabIndicatorFullWidth="false"
+            app:tabMode="scrollable"
+            app:tabPaddingStart="16dp"
+            app:tabRippleColor="?tabRippleColor"
+            app:tabSelectedTextColor="?tabSelectedTextColor"
+            app:tabTextColor="?tabTextColor"
+            app:tabUnboundedRipple="false" />
+
+        <ImageButton
+            android:id="@+id/refresh_visible_subscription"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/update_current_subscription"
+            android:src="@drawable/ic_baseline_refresh_24"
+            android:tint="?attr/colorControlNormal"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/group_pager"

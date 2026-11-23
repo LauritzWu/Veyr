@@ -69,7 +69,8 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
         deleted: List<String>,
         duplicate: List<String>,
         byUser: Boolean,
-        selectedRemoved: Boolean
+        selectedRemoved: Boolean,
+        nodeCount: Int
     ) {
         if (!byUser && !selectedRemoved && added.isEmpty() && updated.isEmpty() && deleted.isEmpty() && duplicate.isEmpty()) {
             return
@@ -80,7 +81,7 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
                 R.string.subscription_refresh_summary, group.displayName(), added.size, updated.size, deleted.size
             )
             if (!selectedRemoved && added.isEmpty() && updated.isEmpty() && deleted.isEmpty() && duplicate.isEmpty()) {
-                context.snackbar(summary).show()
+                context.snackbar(context.getString(R.string.subscription_refresh_unchanged_count, group.displayName(), nodeCount)).show()
                 return@onMainDispatcher
             }
 
@@ -97,11 +98,21 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
                 if (deleted.isNotEmpty()) add(context.getString(R.string.group_deleted, deleted.joinToString("\n")))
                 if (duplicate.isNotEmpty()) add(context.getString(R.string.group_duplicate, duplicate.joinToString("\n")))
             }
-            MaterialAlertDialogBuilder(context)
-                .setTitle(context.getString(R.string.group_diff, group.displayName()))
-                .setMessage(details.joinToString("\n\n"))
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
+            fun showDetails() {
+                if (context.isFinishing || context.isDestroyed) return
+                MaterialAlertDialogBuilder(context)
+                    .setTitle(context.getString(R.string.group_diff, group.displayName()))
+                    .setMessage(details.joinToString("\n\n"))
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+            }
+            if (selectedRemoved || duplicate.isNotEmpty()) {
+                showDetails()
+            } else {
+                context.snackbar(summary)
+                    .setAction(R.string.subscription_refresh_details) { showDetails() }
+                    .show()
+            }
         }
     }
 

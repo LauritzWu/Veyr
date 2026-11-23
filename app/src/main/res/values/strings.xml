@@ -806,4 +806,6 @@
     <string name="active_connection_offline">Disconnected</string>
     <string name="active_connection_connected">Connected</string>
     <string name="active_connection_profile">Connected · %1$s</string>
+    <string name="subscription_refresh_unchanged_count">%1$s · Up to date (%2$d)</string>
+    <string name="subscription_refresh_details">Details</string>
 </resources>

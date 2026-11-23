@@ -317,7 +317,30 @@ class ConfigurationFragment @JvmOverloads constructor(
         }
     }
 
+    private fun visibleGroup() = adapter.groupList.getOrNull(groupPager.currentItem)
+
+    private fun updateRefreshButton() {
+        val button = view?.findViewById<View>(R.id.refresh_visible_subscription) ?: return
+        val group = visibleGroup()
+        button.isVisible = !select && group?.type == GroupType.SUBSCRIPTION
+        button.isEnabled = group != null && group.id !in GroupUpdater.updating
+        button.alpha = if (button.isEnabled) 1f else 0.45f
+    }
+
+    private fun refreshVisibleSubscription() {
+        val group = visibleGroup() ?: return
+        if (group.type == GroupType.SUBSCRIPTION) {
+            GroupUpdater.startUpdate(group, true)
+        } else {
+            snackbar(R.string.group_not_subscription).show()
+        }
+    }
+
     val updateSelectedCallback = object : ViewPager2.OnPageChangeCallback() {
+        override fun onPageSelected(position: Int) {
+            updateRefreshButton()
+        }
+
         override fun onPageScrolled(
             position: Int, positionOffset: Float, positionOffsetPixels: Int
         ) {
@@ -392,6 +415,9 @@ class ConfigurationFragment @JvmOverloads constructor(
         ProfileManager.addListener(adapter)
         GroupManager.addListener(adapter)
 
+        view.findViewById<View>(R.id.refresh_visible_subscription).setOnClickListener {
+            refreshVisibleSubscription()
+        }
         groupPager.adapter = adapter
         groupPager.offscreenPageLimit = 2
 
@@ -788,17 +814,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                 startActivity(Intent(requireActivity(), ChainSettingsActivity::class.java))
             }
 
-            R.id.action_update_subscription -> {
-                val group = DataStore.currentGroup()
-                if (group.type != GroupType.SUBSCRIPTION) {
-                    snackbar(R.string.group_not_subscription).show()
-                    Logs.e("onMenuItemClick: Group(${group.displayName()}) is not subscription")
-                } else {
-                    runOnLifecycleDispatcher {
-                        GroupUpdater.startUpdate(group, true)
-                    }
-                }
-            }
+            R.id.action_update_subscription -> refreshVisibleSubscription()
 
             R.id.action_clear_traffic_statistics -> {
                 val trafficService = (activity as? MainActivity)?.connection?.service
@@ -1359,8 +1375,9 @@ class ConfigurationFragment @JvmOverloads constructor(
                                 if (newSelectedGroupIndex != null) {
                                     groupPager.setCurrentItem(selectedGroupIndex, false)
                                 }
-                                val hideTab = groupList.size < 2
+                                val hideTab = groupList.size < 2 && (select || visibleGroup()?.type != GroupType.SUBSCRIPTION)
                                 tabLayout.isGone = hideTab
+                                updateRefreshButton()
                                 toolbar.elevation = if (hideTab) 0F else dp2px(4).toFloat()
                                 if (!select) {
                                     groupPager.registerOnPageChangeCallback(updateSelectedCallback)
@@ -1418,6 +1435,7 @@ class ConfigurationFragment @JvmOverloads constructor(
             tabLayout.post {
                 groupList.removeAt(index)
                 notifyItemRemoved(index)
+                updateRefreshButton()
             }
         }
 
@@ -1426,11 +1444,17 @@ class ConfigurationFragment @JvmOverloads constructor(
             if (index == -1) return
 
             tabLayout.post {
-                tabLayout.getTabAt(index)?.text = group.displayName()
+                val position = groupList.indexOfFirst { it.id == group.id }
+                if (position < 0) return@post
+                groupList[position] = group
+                tabLayout.getTabAt(position)?.text = group.displayName()
+                updateRefreshButton()
             }
         }
 
-        override suspend fun groupUpdated(groupId: Long) = Unit
+        override suspend fun groupUpdated(groupId: Long) {
+            tabLayout.post { updateRefreshButton() }
+        }
 
         override suspend fun onAdd(profile: ProxyEntity) {
             if (groupList.find { it.id == profile.groupId } == null) {

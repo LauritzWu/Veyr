@@ -28,7 +28,8 @@ object GroupManager {
             deleted: List<String>,
             duplicate: List<String>,
             byUser: Boolean,
-            selectedRemoved: Boolean
+            selectedRemoved: Boolean,
+            nodeCount: Int
         )
 
         suspend fun onUpdateFailure(group: ProxyGroup, message: String)

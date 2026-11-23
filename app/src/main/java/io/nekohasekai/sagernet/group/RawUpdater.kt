@@ -277,7 +277,7 @@ object RawUpdater : GroupUpdater() {
         if (selectedRemoved && DataStore.selectedProxy == selected) DataStore.selectedProxy = 0L
         val latest = SagerDatabase.groupDao.getById(proxyGroup.id) ?: return
         userInterface?.onUpdateSuccess(
-            latest, added, updated, removed.map { it.displayName() }, duplicate, byUser, selectedRemoved
+            latest, added, updated, removed.map { it.displayName() }, duplicate, byUser, selectedRemoved, nameMap.size
         )
     }
 
