@@ -24,7 +24,6 @@ import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.SubscriptionFilterMode
 import io.nekohasekai.sagernet.database.*
 import io.nekohasekai.sagernet.database.preference.OnPreferenceDataStoreChangeListener
-import io.nekohasekai.sagernet.group.GroupUpdater
 import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.applyDefaultValues
 import io.nekohasekai.sagernet.ktx.onMainDispatcher
@@ -105,7 +104,6 @@ class GroupSettingsActivity(
         }
     }
 
-    private var isFromClipboard = false
 
     fun needSave(): Boolean {
         return DataStore.dirty
@@ -281,7 +279,6 @@ class GroupSettingsActivity(
 
         if (savedInstanceState == null) {
             val editingId = intent.getLongExtra(EXTRA_GROUP_ID, 0L)
-            isFromClipboard = intent.getBooleanExtra(EXTRA_FROM_CLIPBOARD, false)
             val subscriptionLink = intent.getStringExtra(EXTRA_GROUP_SUBSCRIPTION_LINK)
             val importedGroupName = intent.getStringExtra(EXTRA_GROUP_NAME)
             DataStore.editingId = editingId
@@ -328,10 +325,7 @@ class GroupSettingsActivity(
 
         val editingId = DataStore.editingId
         if (editingId == 0L) {
-            val newGroup = GroupManager.createGroup(ProxyGroup().apply { serialize() })
-            if (isFromClipboard && newGroup.type == GroupType.SUBSCRIPTION && !newGroup.subscription?.link.isNullOrEmpty()) {
-                GroupUpdater.startUpdate(newGroup, true)
-            }
+            GroupManager.createGroup(ProxyGroup().apply { serialize() })
         } else if (needSave()) {
             val entity = SagerDatabase.groupDao.getById(DataStore.editingId)
             if (entity == null) {

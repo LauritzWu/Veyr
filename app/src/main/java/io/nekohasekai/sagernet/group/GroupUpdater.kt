@@ -4,6 +4,7 @@ import io.nekohasekai.sagernet.*
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.GroupManager
 import io.nekohasekai.sagernet.database.ProxyGroup
+import io.nekohasekai.sagernet.database.SagerDatabase
 import io.nekohasekai.sagernet.database.SubscriptionBean
 import io.nekohasekai.sagernet.fmt.AbstractBean
 import io.nekohasekai.sagernet.fmt.http.HttpBean
@@ -132,11 +133,13 @@ abstract class GroupUpdater {
 
         suspend fun executeUpdate(proxyGroup: ProxyGroup, byUser: Boolean): Boolean {
             return coroutineScope {
-                if (!updating.add(proxyGroup.id)) cancel()
+                if (!updating.add(proxyGroup.id)) return@coroutineScope false
                 val userInterface = GroupManager.userInterface
                 try {
                     GroupManager.postReload(proxyGroup.id)
-                    val subscription = checkNotNull(proxyGroup.subscription)
+                    val current = SagerDatabase.groupDao.getById(proxyGroup.id) ?: return@coroutineScope false
+                    if (current.type != GroupType.SUBSCRIPTION) return@coroutineScope false
+                    val subscription = checkNotNull(current.subscription)
                     val requiresConfirmation = subscription.link?.startsWith("http://") == true ||
                         subscription.updateWhenConnectedOnly
                     if (byUser && requiresConfirmation && !DataStore.serviceState.connected &&
@@ -145,7 +148,7 @@ abstract class GroupUpdater {
                         return@coroutineScope false
                     }
 
-                    RawUpdater.doUpdate(proxyGroup, subscription, userInterface, byUser)
+                    RawUpdater.doUpdate(current, subscription, userInterface, byUser)
                     true
                 } catch (e: CancellationException) {
                     throw e

@@ -2,6 +2,7 @@ package io.nekohasekai.sagernet.database
 
 import io.nekohasekai.sagernet.GroupType
 import io.nekohasekai.sagernet.bg.SubscriptionUpdater
+import io.nekohasekai.sagernet.group.GroupUpdater
 import io.nekohasekai.sagernet.ktx.applyDefaultValues
 
 object GroupManager {
@@ -88,6 +89,7 @@ object GroupManager {
         iterator { groupAdd(group) }
         if (group.type == GroupType.SUBSCRIPTION) {
             SubscriptionUpdater.reconfigureUpdater()
+            GroupUpdater.startUpdate(group, true)
         }
         return group
     }

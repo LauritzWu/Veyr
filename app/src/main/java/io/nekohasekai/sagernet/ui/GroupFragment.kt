@@ -252,10 +252,6 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
             onMainDispatcher {
                 undoManager.flush()
                 notifyItemInserted(groupList.size - 1)
-
-                if (group.type == GroupType.SUBSCRIPTION) {
-                    GroupUpdater.startUpdate(group, true)
-                }
             }
         }
 
