@@ -238,8 +238,6 @@ class ConfigurationFragment @JvmOverloads constructor(
                     snapshot.serviceState.started,
                 )
                 if (!select) {
-                    view?.findViewById<View>(R.id.open_connection_diagnostic)?.visibility =
-                        if (snapshot.serviceState == BaseService.State.Connected) View.VISIBLE else View.GONE
                     view?.findViewById<TextView>(R.id.active_connection)?.text = when (snapshot.serviceState) {
                         BaseService.State.Connected -> snapshot.activeProfileName?.takeIf { it.isNotBlank() }?.let {
                             getString(R.string.active_connection_profile, it)
@@ -386,10 +384,7 @@ class ConfigurationFragment @JvmOverloads constructor(
         super.onViewCreated(view, savedInstanceState)
 
         if (!select) {
-            view.findViewById<View>(R.id.connection_header).visibility = View.VISIBLE
-            view.findViewById<View>(R.id.open_connection_diagnostic).setOnClickListener {
-                (activity as? MainActivity)?.showConnectionDiagnostic()
-            }
+            view.findViewById<TextView>(R.id.active_connection).visibility = View.VISIBLE
             refreshProfileState()
             toolbar.inflateMenu(R.menu.add_profile_menu)
             toolbar.menu.findItem(R.id.action_global_mode)?.isChecked = DataStore.globalMode
@@ -818,8 +813,6 @@ class ConfigurationFragment @JvmOverloads constructor(
             R.id.action_new_chain -> {
                 startActivity(Intent(requireActivity(), ChainSettingsActivity::class.java))
             }
-
-            R.id.action_update_subscription -> refreshVisibleSubscription()
 
             R.id.action_clear_traffic_statistics -> {
                 val trafficService = (activity as? MainActivity)?.connection?.service
