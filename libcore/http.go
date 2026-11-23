@@ -338,6 +338,11 @@ func (r *httpRequest) doH3Direct() (HTTPResponse, error) {
 	case result := <-successCh:
 		return &httpResponse{Response: result}, nil
 	case <-ctx.Done():
+		mu.Lock()
+		defer mu.Unlock()
+		if finalErr == nil {
+			return nil, ctx.Err()
+		}
 		return nil, finalErr
 	}
 }

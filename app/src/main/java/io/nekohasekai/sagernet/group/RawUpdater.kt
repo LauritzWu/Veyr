@@ -44,6 +44,23 @@ import androidx.core.net.toUri
 @Suppress("EXPERIMENTAL_API_USAGE")
 object RawUpdater : GroupUpdater() {
 
+    private fun readFailureReason(error: Exception): String {
+        // Native errors can include the subscription URL and response body. Only display known categories.
+        val message = error.readableMessage.lowercase()
+        val reason = when {
+            "x509:" in message || "certificate" in message -> R.string.sub_reason_certificate
+            "no such host" in message || "unknownhost" in message || "lookup " in message -> R.string.sub_reason_dns
+            "handshake" in message || "tls:" in message -> R.string.sub_reason_tls
+            "timeout" in message || "timed out" in message || "deadline exceeded" in message -> R.string.sub_reason_timeout
+            "connection refused" in message -> R.string.sub_reason_refused
+            "network is unreachable" in message || "no route to host" in message -> R.string.sub_reason_route
+            "connection reset" in message || "eof" in message -> R.string.sub_reason_closed
+            "empty transport response" in message -> R.string.sub_reason_empty
+            else -> return app.getString(R.string.sub_reason_other, error.javaClass.simpleName)
+        }
+        return app.getString(reason)
+    }
+
     @SuppressLint("Recycle")
     override suspend fun doUpdate(
         proxyGroup: ProxyGroup,
@@ -56,12 +73,14 @@ object RawUpdater : GroupUpdater() {
         val link = subscription.link
         var updatedUserInfo: String? = null
         var updatedName: String? = null
+        var stage = R.string.sub_stage_setup
         val content = try {
             if (link.startsWith("content://")) {
+                stage = R.string.sub_stage_file
                 app.contentResolver.openInputStream(link.toUri())?.bufferedReader()?.use { it.readText() }
                     ?: error("Subscription file unavailable")
             } else {
-                val response = Libcore.newHttpClient().apply {
+                val request = Libcore.newHttpClient().apply {
                     trySocks5(DataStore.mixedPort, DataStore.mixedInboundUser, DataStore.mixedInboundPass)
                     tryH3Direct()
                     if (DataStore.appTLSVersion == "1.3") restrictedTLS()
@@ -69,8 +88,12 @@ object RawUpdater : GroupUpdater() {
                     if (DataStore.allowInsecureOnRequest) allowInsecure()
                     setURL(link)
                     setUserAgent(subscription.customUserAgent.takeIf { it.isNotBlank() } ?: USER_AGENT)
-                }.execute()
+                }
+                stage = R.string.sub_stage_request
+                val response = checkNotNull(request.execute()) { "empty transport response" }
+                stage = R.string.sub_stage_body
                 val text = Util.getStringBox(response.contentString)
+                stage = R.string.sub_stage_metadata
                 updatedUserInfo = Util.getStringBox(response.getHeader("Subscription-Userinfo"))
                     .ifBlank { findBodyHeader(text, "subscription-userinfo").orEmpty() }
                 updatedName = parseBodyProfileTitle(text).ifBlank {
@@ -84,7 +107,7 @@ object RawUpdater : GroupUpdater() {
             val status = Regex("""\bHTTP ([45][0-9]{2})\b""").find(e.readableMessage)?.groupValues?.get(1)
             throw SubscriptionUpdateException(
                 if (status != null) app.getString(R.string.subscription_refresh_http_error, status)
-                else app.getString(R.string.subscription_refresh_download_error)
+                else app.getString(R.string.sub_read_failure, app.getString(stage), readFailureReason(e))
             )
         }
 

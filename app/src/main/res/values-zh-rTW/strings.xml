@@ -676,4 +676,19 @@
     <string name="github_update_retry">重試</string>
     <string name="logcat_history">查看保留的日誌（最多 256 KiB）</string>
     <string name="log_buffer_size">日誌緩衝區大小（KiB）</string>
+    <string name="sub_stage_setup">準備請求</string>
+    <string name="sub_stage_file">讀取檔案</string>
+    <string name="sub_stage_request">傳送請求</string>
+    <string name="sub_stage_body">讀取回應本文</string>
+    <string name="sub_stage_metadata">讀取訂閱中繼資料</string>
+    <string name="sub_read_failure">%1$s · %2$s</string>
+    <string name="sub_reason_certificate">憑證驗證失敗</string>
+    <string name="sub_reason_dns">網域解析失敗</string>
+    <string name="sub_reason_tls">TLS 交握失敗</string>
+    <string name="sub_reason_timeout">請求逾時</string>
+    <string name="sub_reason_refused">連線遭拒</string>
+    <string name="sub_reason_route">網路無法連線</string>
+    <string name="sub_reason_closed">連線已關閉</string>
+    <string name="sub_reason_empty">傳輸層未傳回回應</string>
+    <string name="sub_reason_other">未分類例外（%1$s）</string>
 </resources>

@@ -718,4 +718,19 @@
     <string name="github_update_retry">重试</string>
     <string name="logcat_history">查看保留的日志（最多 256 KiB）</string>
     <string name="log_buffer_size">日志缓冲区大小（KiB）</string>
+    <string name="sub_stage_setup">准备请求</string>
+    <string name="sub_stage_file">读取文件</string>
+    <string name="sub_stage_request">发送请求</string>
+    <string name="sub_stage_body">读取响应正文</string>
+    <string name="sub_stage_metadata">读取订阅元数据</string>
+    <string name="sub_read_failure">%1$s · %2$s</string>
+    <string name="sub_reason_certificate">证书验证失败</string>
+    <string name="sub_reason_dns">域名解析失败</string>
+    <string name="sub_reason_tls">TLS 握手失败</string>
+    <string name="sub_reason_timeout">请求超时</string>
+    <string name="sub_reason_refused">连接被拒绝</string>
+    <string name="sub_reason_route">网络不可达</string>
+    <string name="sub_reason_closed">连接已关闭</string>
+    <string name="sub_reason_empty">传输层未返回响应</string>
+    <string name="sub_reason_other">未分类异常（%1$s）</string>
 </resources>

@@ -803,4 +803,19 @@
     <string name="github_update_retry">Retry</string>
     <string name="logcat_history">View retained log (up to 256 KiB)</string>
     <string name="log_buffer_size">Log buffer size (KiB)</string>
+    <string name="sub_stage_setup">Prepare request</string>
+    <string name="sub_stage_file">Read file</string>
+    <string name="sub_stage_request">Send request</string>
+    <string name="sub_stage_body">Read response</string>
+    <string name="sub_stage_metadata">Read metadata</string>
+    <string name="sub_read_failure">%1$s · %2$s</string>
+    <string name="sub_reason_certificate">Certificate verification failed</string>
+    <string name="sub_reason_dns">DNS lookup failed</string>
+    <string name="sub_reason_tls">TLS handshake failed</string>
+    <string name="sub_reason_timeout">Timed out</string>
+    <string name="sub_reason_refused">Connection refused</string>
+    <string name="sub_reason_route">Network unreachable</string>
+    <string name="sub_reason_closed">Connection closed</string>
+    <string name="sub_reason_empty">Empty transport response</string>
+    <string name="sub_reason_other">Unclassified error (%1$s)</string>
 </resources>
