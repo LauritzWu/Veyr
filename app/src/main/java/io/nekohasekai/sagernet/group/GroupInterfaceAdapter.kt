@@ -29,7 +29,10 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
     }
 
     override suspend fun confirmSubscriptionRemoval(
-        group: ProxyGroup, nodes: List<String>, selectedIndex: Int
+        group: ProxyGroup,
+        nodes: List<String>,
+        selectedIndex: Int,
+        affectedRules: List<Pair<String, String>>
     ): Boolean = onMainDispatcher {
         if (context.isFinishing || context.isDestroyed) return@onMainDispatcher false
         suspendCancellableCoroutine { continuation ->
@@ -40,10 +43,17 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
                     name
                 }
             }.joinToString("\n")
+            val message = buildList {
+                add(context.getString(R.string.subscription_refresh_remove_preview, names))
+                if (affectedRules.isNotEmpty()) {
+                    val rules = affectedRules.joinToString("\n") { (rule, node) -> "$rule → $node" }
+                    add(context.getString(R.string.subscription_refresh_affected_rules, rules))
+                }
+            }.joinToString("\n\n")
             var approved = false
             val dialog = MaterialAlertDialogBuilder(context)
                 .setTitle(context.getString(R.string.group_diff, group.displayName()))
-                .setMessage(context.getString(R.string.subscription_refresh_remove_preview, names))
+                .setMessage(message)
                 .setPositiveButton(R.string.subscription_refresh_apply) { _, _ -> approved = true }
                 .setNegativeButton(android.R.string.cancel, null)
                 .create()

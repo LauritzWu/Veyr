@@ -6,8 +6,8 @@ Veyr 是基于 sing-box 的 Android 代理客户端，支持 Sub-Store 订阅、
 
 | 渠道 | Android ARM64 安装包 | 版本说明 |
 | --- | --- | --- |
-| 稳定版 | [下载 1.0.8 稳定版 APK](https://github.com/LauritzWu/Veyr/releases/download/v1.0.8-stable.25895/veyr-1.0.8-stable-arm64-v8a.apk) | [最新稳定版](https://github.com/LauritzWu/Veyr/releases/latest) |
-| Beta 版 | [下载 1.0.8-BETA APK](https://github.com/LauritzWu/Veyr/releases/download/v1.0.8-beta.1.25890/veyr-1.0.8-beta-arm64-v8a.apk) | [所有 Beta 发布](https://github.com/LauritzWu/Veyr/releases?q=prerelease%3Atrue) |
+| 稳定版 | [下载 1.0.10 稳定版 APK](https://github.com/LauritzWu/Veyr/releases/download/v1.0.10-stable.25940/veyr-1.0.10-stable-arm64-v8a.apk) | [最新稳定版](https://github.com/LauritzWu/Veyr/releases/latest) |
+| Beta 版 | [下载 1.0.10-BETA.3 APK](https://github.com/LauritzWu/Veyr/releases/download/v1.0.10-beta.3.25935/veyr-1.0.10-beta.3-arm64-v8a.apk) | [所有 Beta 发布](https://github.com/LauritzWu/Veyr/releases?q=prerelease%3Atrue) |
 
 已安装 Veyr 的用户可在 **关于 → 检查更新** 选择稳定版或 Beta 版。覆盖安装时直接打开下载的 APK。
 ## 支持的代理协议 / Supported Proxy Protocols
