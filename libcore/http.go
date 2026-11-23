@@ -38,6 +38,7 @@ type HTTPClient interface {
 	PinnedSHA256(sumHex string)
 	TrySocks5(port int32, username string, password string)
 	TryH3Direct()
+	PreferDirectTLS()
 	KeepAlive()
 	NewRequest() HTTPRequest
 	Close()
@@ -68,11 +69,12 @@ var (
 )
 
 type httpClient struct {
-	tls           tls.Config
-	h1h2Transport http.Transport
-	h1h2Client    http.Client
-	trySocks5     bool
-	tryH3Direct   bool
+	tls             tls.Config
+	h1h2Transport   http.Transport
+	h1h2Client      http.Client
+	trySocks5       bool
+	tryH3Direct     bool
+	preferDirectTLS bool
 }
 
 func NewHttpClient() HTTPClient {
@@ -127,6 +129,7 @@ func (c *httpClient) TrySocks5(port int32, username string, password string) {
 			}
 			_, err = socks.ClientHandshake5(socksConn, socks5.CommandConnect, metadata.ParseSocksaddr(addr), username, password)
 			if err != nil {
+				socksConn.Close()
 				if c.tryH3Direct {
 					return nil, errFailConnectSocks5
 				}
@@ -141,6 +144,10 @@ func (c *httpClient) TrySocks5(port int32, username string, password string) {
 
 func (c *httpClient) TryH3Direct() {
 	c.tryH3Direct = true
+}
+
+func (c *httpClient) PreferDirectTLS() {
+	c.preferDirectTLS = true
 }
 
 func (c *httpClient) KeepAlive() {
@@ -210,13 +217,13 @@ func (r *httpRequest) Execute() (HTTPResponse, error) {
 	defer device.DeferPanicToError("http execute", func(err error) { log.Println(err) })
 	// full direct
 	if r.tryH3Direct && !r.trySocks5 {
-		return r.doH3Direct()
+		return r.doDirect()
 	}
 	response, err := r.h1h2Client.Do(&r.request)
 	if err != nil {
 		// trySocks5 && tryH3Direct
 		if r.tryH3Direct && errors.Is(err, errFailConnectSocks5) {
-			return r.doH3Direct()
+			return r.doDirect()
 		}
 		return nil, err
 	}
@@ -225,6 +232,38 @@ func (r *httpRequest) Execute() (HTTPResponse, error) {
 		return nil, errors.New(httpResp.errorString())
 	}
 	return httpResp, nil
+}
+
+func (r *httpRequest) doDirect() (HTTPResponse, error) {
+	if !r.preferDirectTLS {
+		return r.doH3Direct()
+	}
+
+	// A subscription can be the first request made before any VPN profile exists.
+	// Use ordinary HTTP(S) before trying the optional ECH and HTTP/3 transports.
+	transport := &http.Transport{
+		TLSClientConfig:   r.tls.Clone(),
+		ForceAttemptHTTP2: true,
+		DisableKeepAlives: true,
+	}
+	defer transport.CloseIdleConnections()
+
+	client := &http.Client{Transport: transport, Timeout: 10 * time.Second}
+	response, err := client.Do(&r.request)
+	if err == nil {
+		result := &httpResponse{Response: response}
+		if response.StatusCode != http.StatusOK {
+			return nil, errors.New(result.errorString())
+		}
+		return result, nil
+	}
+
+	// A transport failure can be retried with the existing ECH/HTTP3 path.
+	fallback, fallbackErr := r.doH3Direct()
+	if fallback != nil {
+		return fallback, nil
+	}
+	return nil, errors.Join(err, fallbackErr)
 }
 
 type requestFunc func() (response *http.Response, err error)
