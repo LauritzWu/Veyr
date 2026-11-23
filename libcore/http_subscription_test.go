@@ -88,3 +88,57 @@ func TestSubscriptionDirectHTTPS(t *testing.T) {
 		t.Fatalf("expected one HTTPS request per refresh, got %d total", count)
 	}
 }
+
+func TestSubscriptionHTTPSWithoutUsableSOCKS(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("token") != "fixture" || r.UserAgent() != "Veyr-Test" {
+			http.Error(w, "subscription parameters missing", http.StatusBadRequest)
+			return
+		}
+		fmt.Fprint(w, "fixture-subscription")
+	}))
+	defer server.Close()
+
+	for _, useSOCKS := range []bool{false, true} {
+		t.Run(fmt.Sprintf("SOCKS configured=%t", useSOCKS), func(t *testing.T) {
+			client := NewSubscriptionHttpClient().(*httpClient)
+			defer client.Close()
+			client.tls.RootCAs = server.Client().Transport.(*http.Transport).TLSClientConfig.RootCAs
+			client.TryH3Direct()
+
+			if useSOCKS {
+				listener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)})
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { listener.Close() })
+				stop := make(chan struct{})
+				defer close(stop)
+				go func() {
+					conn, err := listener.Accept()
+					if err != nil {
+						return
+					}
+					defer conn.Close()
+					// Accept TCP without replying to the SOCKS greeting.
+					<-stop
+				}()
+				client.TrySocks5(int32(listener.Addr().(*net.TCPAddr).Port), "", "")
+			}
+
+			request := client.NewRequest()
+			if err := request.SetURL(server.URL + "?token=fixture"); err != nil {
+				t.Fatal(err)
+			}
+			request.SetUserAgent("Veyr-Test")
+			response, err := request.Execute()
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, err := response.GetContent()
+			if err != nil || string(body) != "fixture-subscription" {
+				t.Fatalf("unexpected subscription response: %q, %v", body, err)
+			}
+		})
+	}
+}

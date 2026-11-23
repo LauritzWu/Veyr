@@ -80,11 +80,14 @@ object RawUpdater : GroupUpdater() {
                 app.contentResolver.openInputStream(link.toUri())?.bufferedReader()?.use { it.readText() }
                     ?: error("Subscription file unavailable")
             } else {
-                val request = Libcore.newHttpClient().apply {
-                    trySocks5(DataStore.mixedPort, DataStore.mixedInboundUser, DataStore.mixedInboundPass)
+                val client = Libcore.newSubscriptionHttpClient().apply {
+                    if (DataStore.serviceState.connected) {
+                        trySocks5(DataStore.mixedPort, DataStore.mixedInboundUser, DataStore.mixedInboundPass)
+                    }
                     tryH3Direct()
                     if (DataStore.appTLSVersion == "1.3") restrictedTLS()
-                }.newRequest().apply {
+                }
+                val request = client.newRequest().apply {
                     if (DataStore.allowInsecureOnRequest) allowInsecure()
                     setURL(link)
                     setUserAgent(subscription.customUserAgent.takeIf { it.isNotBlank() } ?: USER_AGENT)

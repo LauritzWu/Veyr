@@ -73,6 +73,7 @@ type httpClient struct {
 	h1h2Client    http.Client
 	trySocks5     bool
 	tryH3Direct   bool
+	subscription  bool
 }
 
 func NewHttpClient() HTTPClient {
@@ -80,6 +81,15 @@ func NewHttpClient() HTTPClient {
 	client.h1h2Client.Transport = &client.h1h2Transport
 	client.h1h2Transport.TLSClientConfig = &client.tls
 	client.h1h2Transport.DisableKeepAlives = true
+	return client
+}
+
+func NewSubscriptionHttpClient() HTTPClient {
+	client := NewHttpClient().(*httpClient)
+	client.subscription = true
+	client.h1h2Transport.ForceAttemptHTTP2 = true
+	client.h1h2Transport.TLSHandshakeTimeout = 6 * time.Second
+	client.h1h2Client.Timeout = 15 * time.Second
 	return client
 }
 
@@ -117,22 +127,35 @@ func (c *httpClient) PinnedSHA256(sumHex string) {
 func (c *httpClient) TrySocks5(port int32, username string, password string) {
 	dialer := new(net.Dialer)
 	c.h1h2Transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		socksContext := ctx
+		if c.subscription {
+			var cancel context.CancelFunc
+			socksContext, cancel = context.WithTimeout(ctx, 3*time.Second)
+			defer cancel()
+		}
 		for {
-			socksConn, err := dialer.DialContext(ctx, "tcp", "127.0.0.1:"+strconv.Itoa(int(port)))
+			socksConn, err := dialer.DialContext(socksContext, "tcp", "127.0.0.1:"+strconv.Itoa(int(port)))
 			if err != nil {
 				if c.tryH3Direct {
 					return nil, errFailConnectSocks5
 				}
 				break
+			}
+			if deadline, ok := socksContext.Deadline(); c.subscription && ok {
+				_ = socksConn.SetDeadline(deadline)
 			}
 			_, err = socks.ClientHandshake5(socksConn, socks5.CommandConnect, metadata.ParseSocksaddr(addr), username, password)
 			if err != nil {
+				socksConn.Close()
 				if c.tryH3Direct {
 					return nil, errFailConnectSocks5
 				}
 				break
 			}
-			return socksConn, err
+			if c.subscription {
+				_ = socksConn.SetDeadline(time.Time{})
+			}
+			return socksConn, nil
 		}
 		return dialer.DialContext(ctx, network, addr)
 	}
@@ -208,6 +231,9 @@ func (r *httpRequest) SetContentString(content string) {
 
 func (r *httpRequest) Execute() (HTTPResponse, error) {
 	defer device.DeferPanicToError("http execute", func(err error) { log.Println(err) })
+	if r.subscription {
+		return r.executeSubscription()
+	}
 	// full direct
 	if r.tryH3Direct && !r.trySocks5 {
 		return r.doH3Direct()
@@ -225,6 +251,38 @@ func (r *httpRequest) Execute() (HTTPResponse, error) {
 		return nil, errors.New(httpResp.errorString())
 	}
 	return httpResp, nil
+}
+
+func (r *httpRequest) executeSubscription() (HTTPResponse, error) {
+	response, err := r.h1h2Client.Do(&r.request)
+	if r.trySocks5 && errors.Is(err, errFailConnectSocks5) {
+		transport := &http.Transport{
+			TLSClientConfig:     r.tls.Clone(),
+			ForceAttemptHTTP2:   true,
+			TLSHandshakeTimeout: r.h1h2Transport.TLSHandshakeTimeout,
+			DisableKeepAlives:   true,
+		}
+		defer transport.CloseIdleConnections()
+		client := &http.Client{Transport: transport, Timeout: r.h1h2Client.Timeout}
+		response, err = client.Do(&r.request)
+	} else if r.trySocks5 && err != nil {
+		return nil, err
+	}
+	if err != nil {
+		if r.tryH3Direct && r.request.URL.Scheme == "https" {
+			fallback, fallbackErr := r.doH3Direct()
+			if fallbackErr == nil {
+				return fallback, nil
+			}
+			return nil, errors.Join(err, fallbackErr)
+		}
+		return nil, err
+	}
+	if response.StatusCode != http.StatusOK {
+		response.Body.Close()
+		return nil, fmt.Errorf("HTTP %d", response.StatusCode)
+	}
+	return &httpResponse{Response: response}, nil
 }
 
 type requestFunc func() (response *http.Response, err error)
