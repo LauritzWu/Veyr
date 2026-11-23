@@ -95,7 +95,7 @@ class MainActivity : ThemedActivity(),
                 null
             )
         }
-        binding.stats.setOnClickListener { if (DataStore.serviceState.connected) binding.stats.testConnection() }
+        binding.stats.setOnClickListener { showConnectionDiagnostic() }
 
         setContentView(binding.root)
         currentMainFragment =
@@ -194,6 +194,10 @@ class MainActivity : ThemedActivity(),
                 importProfile(uri)
             }
         }
+    }
+
+    fun showConnectionDiagnostic() {
+        if (DataStore.serviceState.connected) binding.stats.testConnection()
     }
 
     fun connectionDiagnostic(): JSONObject {
