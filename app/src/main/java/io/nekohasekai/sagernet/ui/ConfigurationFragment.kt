@@ -2351,12 +2351,10 @@ class ConfigurationFragment @JvmOverloads constructor(
             val trafficText: TextView = view.findViewById(R.id.traffic_text)
             private val card = view as MaterialCardView
             private val selectedIndicator: View = view.findViewById(R.id.selected_indicator)
-            val editButton: ImageView = view.findViewById(R.id.edit)
-            val doubleColumnMenuButton: ImageView = view.findViewById(R.id.double_column_menu)
+            val profileMenuButton: ImageView = view.findViewById(R.id.profile_menu)
             val shareLayout: LinearLayout = view.findViewById(R.id.share)
             val shareLayer: LinearLayout = view.findViewById(R.id.share_layer)
             val shareButton: ImageView = view.findViewById(R.id.shareIcon)
-            val removeButton: ImageView = view.findViewById(R.id.remove)
 
             init {
                 view.setOnClickListener {
@@ -2374,19 +2372,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                     }
                 }
                 profileStatus.isFocusable = false
-                editButton.setOnClickListener {
-                    val proxyEntity = entity
-                    it.context.startActivity(
-                        proxyEntity.settingIntent(
-                            it.context, proxyGroup.type == GroupType.SUBSCRIPTION
-                        )
-                    )
-                }
-                removeButton.setOnClickListener {
-                    removeProfile(entity)
-                }
-                doubleColumnMenuButton.setOnClickListener {
-                    showDoubleColumnMenu(it, entity)
+                profileMenuButton.setOnClickListener {
+                    showProfileMenu(it, entity)
                 }
                 shareLayout.setOnClickListener {
                     val proxyEntity = entity
@@ -2446,10 +2433,14 @@ class ConfigurationFragment @JvmOverloads constructor(
                 }
             }
 
-            private fun showDoubleColumnMenu(anchor: View, proxyEntity: ProxyEntity) {
+            private fun showProfileMenu(anchor: View, proxyEntity: ProxyEntity) {
                 val popup = PopupMenu(requireContext(), anchor)
                 popup.menuInflater.inflate(R.menu.double_column_item_menu, popup.menu)
+                if (layoutManager !is FixedGridLayoutManager) popup.menu.removeItem(R.id.action_share)
                 if (select) popup.menu.removeItem(R.id.action_delete)
+                val canModify = !(DataStore.serviceState.started && DataStore.currentProfile == proxyEntity.id)
+                popup.menu.findItem(R.id.action_edit).isEnabled = canModify
+                popup.menu.findItem(R.id.action_delete)?.isEnabled = canModify
                 popup.setOnMenuItemClickListener { menuItem ->
                     when (menuItem.itemId) {
                         R.id.action_edit -> {
@@ -2475,6 +2466,8 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
 
             private fun applySelected(selected: Boolean) {
+                profileName.setTypeface(android.graphics.Typeface.SERIF, if (selected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+                card.isSelected = selected
                 val ctx = card.context
                 val surface = ctx.getColorAttr(R.attr.colorSurface)
                 if (DataStore.profileCardStyle == 1) {
@@ -2715,33 +2708,11 @@ class ConfigurationFragment @JvmOverloads constructor(
                     profileStatus.text = if (msg != err) msg else getString(R.string.unavailable)
                 }
 
-                val selectOrChain = select || proxyEntity.type == ProxyEntity.TYPE_CHAIN
-                val isDoubleColumn = layoutManager is FixedGridLayoutManager
-                
-                if (isDoubleColumn) {
-                    editButton.isGone = true
-                    shareLayout.isGone = true
-                    removeButton.isGone = true
-                    doubleColumnMenuButton.isVisible = true
-                } else {
-                    shareLayout.isGone = selectOrChain
-                    editButton.isGone = select
-                    removeButton.isGone = select
-                    doubleColumnMenuButton.isGone = true
-                }
-
-                proxyEntity.nekoBean?.apply {
-                    if (!isDoubleColumn) {
-                        shareLayout.isGone = true
-                    }
-                }
-
-                val selected = pf.isSelectedProfile(proxyEntity.id)
-                val started =
-                    selected && DataStore.serviceState.started && pf.isCurrentProfile(proxyEntity.id)
-                editButton.isEnabled = !started
-                removeButton.isEnabled = !started
-                applySelected(selected)
+                val compact = layoutManager is FixedGridLayoutManager
+                shareLayout.isVisible = !compact && !select &&
+                    proxyEntity.type != ProxyEntity.TYPE_CHAIN && proxyEntity.nekoBean == null
+                profileMenuButton.isVisible = compact || !select
+                applySelected(pf.isSelectedProfile(proxyEntity.id))
 
                 if (!(select || proxyEntity.type == ProxyEntity.TYPE_CHAIN)) {
                     shareLayer.setBackgroundColor(Color.TRANSPARENT)
@@ -2761,12 +2732,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                     return
                 }
                 val pf = parentFragment as? ConfigurationFragment ?: return
-                val selected = pf.isSelectedProfile(proxyEntity.id)
-                val started = selected && DataStore.serviceState.started &&
-                        pf.isCurrentProfile(proxyEntity.id)
-                editButton.isEnabled = !started
-                removeButton.isEnabled = !started
-                applySelected(selected)
+                applySelected(pf.isSelectedProfile(proxyEntity.id))
             }
 
             fun bindTraffic(proxyEntity: ProxyEntity) {
