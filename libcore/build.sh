@@ -19,7 +19,7 @@ fi
 export GOBIND="$GOPATH/bin/gobind-matsuri"
 # gomobile builds generated modules outside the Git worktree.
 export GOFLAGS="${GOFLAGS:+$GOFLAGS }-buildvcs=false"
-"$GOPATH"/bin/gomobile-matsuri bind -v -androidapi 23 -cache "$(realpath $BUILD)" -trimpath -ldflags='-s -w -checklinkname=0 -extldflags=-Wl,-z,max-page-size=16384' -tags='with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0' . || exit 1
+"$GOPATH"/bin/gomobile-matsuri bind -v -androidapi 23 -cache "$(realpath $BUILD)" -trimpath -ldflags='-s -w -checklinkname=0 -extldflags=-Wl,-z,max-page-size=16384' -tags='with_gvisor,with_quic,with_wireguard,with_tailscale,with_utls,with_clash_api,badlinkname,tfogo_checklinkname0' . || exit 1
 rm -r libcore-sources.jar
 
 proj=../app/libs
