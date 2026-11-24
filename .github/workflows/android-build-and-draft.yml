@@ -1,7 +1,7 @@
 name: Build signed Android APK and prepare draft
 on:
   push:
-    branches: ['candidate/1.0.13-beta.2']
+    branches: ['candidate/1.0.13-beta.3']
   workflow_dispatch:
     inputs:
       version:
@@ -27,8 +27,8 @@ concurrency:
 env:
   BASE_VERSION: ${{ inputs.version || '1.0.13' }}
   CHANNEL: ${{ inputs.channel || 'beta' }}
-  BETA_ITERATION: ${{ github.event_name == 'push' && '2' || inputs.beta_iteration }}
-  REQUESTED_BUILD_CODE: ${{ inputs.build_code || '26540' }}
+  BETA_ITERATION: ${{ github.event_name == 'push' && '3' || inputs.beta_iteration }}
+  REQUESTED_BUILD_CODE: ${{ inputs.build_code || '26545' }}
 jobs:
   libcore:
     name: Native Build (LibCore)
@@ -269,7 +269,7 @@ jobs:
             printf 'Veyr %s\n\n' "$version_name"
             printf '已有 Veyr 的用户可以直接覆盖安装。\n\n'
             printf '## 更新内容\n\n'
-            printf '%s\n' '- 点击节点延迟查看测速方式和时间，可单独重新测速。'
+            printf '%s\n' '- 节点卡片有流量但没有显示地址时，隐藏空地址标签。'
             printf '\n'
             printf '[构建记录](https://github.com/%s/actions/runs/%s)\n' "$GH_REPO" "$run_id"
           } > release-notes.md

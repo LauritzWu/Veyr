@@ -2711,6 +2711,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                     address = address.substring(0, 27) + "..."
                 }
 
+                profileAddress.isVisible = address.isNotBlank()
                 profileAddress.text = address
                 val testStatus = if (proxyEntity.isFullSingBoxConfig()) 0 else proxyEntity.status
                 profileStatus.isClickable = !select && testStatus > 0
