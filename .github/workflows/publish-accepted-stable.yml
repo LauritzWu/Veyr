@@ -1,0 +1,19 @@
+name: Publish approved Veyr 1.0.13 stable release
+on:
+  push:
+    branches: ['publish/1.0.13-stable']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify and publish the accepted draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api='repos/LauritzWu/Veyr/releases'
+          gh api "$api/456635537" | jq -e '.draft and (.prerelease == false) and .target_commitish == "e3b6f0741426e29347edf09f5ef6fbbce562df73" and .tag_name == "v1.0.13-stable.26550" and ([.assets[].name] | sort) == ["SHA256SUMS","veyr-1.0.13-stable-arm64-v8a.apk"]'
+          gh api --method PATCH "$api/456635537" -F draft=false -f make_latest=true --silent
+          gh api "$api/latest" --jq .id | grep -Fx 456635537
