@@ -1,7 +1,7 @@
 name: Build signed Android APK and prepare draft
 on:
   push:
-    branches: ['candidate/1.0.13-stable']
+    branches: ['candidate/1.0.14-beta.1']
   workflow_dispatch:
     inputs:
       version:
@@ -25,10 +25,10 @@ permissions:
 concurrency:
   group: android-release-draft
 env:
-  BASE_VERSION: ${{ inputs.version || '1.0.13' }}
-  CHANNEL: ${{ inputs.channel || 'stable' }}
-  BETA_ITERATION: ${{ inputs.beta_iteration }}
-  REQUESTED_BUILD_CODE: ${{ inputs.build_code || '26550' }}
+  BASE_VERSION: ${{ inputs.version || '1.0.14' }}
+  CHANNEL: ${{ inputs.channel || 'beta' }}
+  BETA_ITERATION: ${{ github.event_name == 'push' && '1' || inputs.beta_iteration }}
+  REQUESTED_BUILD_CODE: ${{ inputs.build_code || '26555' }}
 jobs:
   libcore:
     name: Native Build (LibCore)
@@ -269,7 +269,7 @@ jobs:
             printf 'Veyr %s\n\n' "$version_name"
             printf '已有 Veyr 的用户可以直接覆盖安装。\n\n'
             printf '## 更新内容\n\n'
-            printf '%s\n' '- 订阅更新将移除节点时，可为受影响的路由选择替代节点，确认后一起应用。' '- 点击节点延迟可查看测速方式和时间，也可单独重测。' '- 节点卡片隐藏空地址标签，流量数字可独立显示。'
+            printf '%s\n' '- 更新订阅时对照节点数、当前出站与更新后出站，应用后显示实际替换数量。'
             printf '\n'
             printf '[构建记录](https://github.com/%s/actions/runs/%s)\n' "$GH_REPO" "$run_id"
           } > release-notes.md

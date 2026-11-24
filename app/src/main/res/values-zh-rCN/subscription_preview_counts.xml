@@ -1,0 +1,7 @@
+<resources>
+    <string name="subscription_count_preview">%1$s · %2$d → %3$d 个节点</string>
+    <string name="subscription_impact_count">移除 %1$d 个节点 · 影响 %2$d 条路由</string>
+    <string name="subscription_outbound_preview">%1$s\n当前出站：%2$s\n更新后出站：%3$s</string>
+    <string name="subscription_removed_reference">保留原引用（节点将移除）</string>
+    <string name="subscription_applied_count">%1$s · 剩余 %2$d 个节点 · 已替换 %3$d 条路由的出站</string>
+</resources>

@@ -33,7 +33,8 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
         nodes: List<String>,
         selectedIndex: Int,
         affectedRules: List<GroupManager.AffectedRoute>,
-        replacementNames: List<String>
+        replacementNames: List<String>,
+        previousCount: Int
     ): Map<Long, String>? = onMainDispatcher {
         if (context.isFinishing || context.isDestroyed) return@onMainDispatcher null
         suspendCancellableCoroutine { continuation ->
@@ -48,10 +49,11 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
             var approved: Map<Long, String>? = null
             var picker: androidx.appcompat.app.AlertDialog? = null
             val builder = MaterialAlertDialogBuilder(context)
-                .setTitle(context.getString(R.string.group_diff, group.displayName()))
+                .setTitle(context.getString(R.string.subscription_count_preview, group.displayName(), previousCount, replacementNames.size))
                 .setPositiveButton(R.string.subscription_refresh_apply) { _, _ -> approved = replacements.toMap() }
                 .setNegativeButton(android.R.string.cancel, null)
-            val summary = context.getString(R.string.subscription_refresh_remove_preview, names)
+            val summary = context.getString(R.string.subscription_impact_count, nodes.size, affectedRules.size) +
+                "\n\n" + context.getString(R.string.subscription_refresh_remove_preview, names)
             if (affectedRules.isEmpty()) {
                 builder.setMessage(summary)
             } else {
@@ -68,7 +70,8 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
                     button.isAllCaps = false
                     button.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
                     fun updateLabel() {
-                        button.text = listOfNotNull(rule.name, rule.oldNode, replacements[rule.id]).joinToString(" → ")
+                        button.text = context.getString(R.string.subscription_outbound_preview, rule.name, rule.oldNode,
+                            replacements[rule.id] ?: context.getString(R.string.subscription_removed_reference))
                     }
                     updateLabel()
                     button.setOnClickListener {
@@ -114,7 +117,8 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
         duplicate: List<String>,
         byUser: Boolean,
         selectedRemoved: Boolean,
-        nodeCount: Int
+        nodeCount: Int,
+        replacedRoutes: Int
     ) {
         if (!byUser && !selectedRemoved && added.isEmpty() && updated.isEmpty() && deleted.isEmpty() && duplicate.isEmpty()) {
             return
@@ -129,7 +133,11 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
                 return@onMainDispatcher
             }
 
+            val applied = if (deleted.isEmpty()) summary else context.getString(
+                R.string.subscription_applied_count, group.displayName(), nodeCount, replacedRoutes
+            )
             val details = buildList {
+                if (deleted.isNotEmpty()) add(applied)
                 add(summary)
                 if (selectedRemoved) add(context.getString(R.string.subscription_refresh_selected_removed))
                 if (added.isNotEmpty()) add(context.getString(R.string.group_added, added.joinToString("\n")))
@@ -153,7 +161,7 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
             if (selectedRemoved || duplicate.isNotEmpty()) {
                 showDetails()
             } else {
-                context.snackbar(summary)
+                context.snackbar(applied)
                     .setAction(R.string.subscription_refresh_details) { showDetails() }
                     .show()
             }

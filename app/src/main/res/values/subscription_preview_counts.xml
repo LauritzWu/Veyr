@@ -1,0 +1,7 @@
+<resources>
+    <string name="subscription_count_preview">%1$s · %2$d → %3$d nodes</string>
+    <string name="subscription_impact_count">Removing %1$d · %2$d affected rules</string>
+    <string name="subscription_outbound_preview">%1$s\nCurrent outbound: %2$s\nAfter update: %3$s</string>
+    <string name="subscription_removed_reference">Original node will be removed</string>
+    <string name="subscription_applied_count">%1$s · %2$d nodes remaining · %3$d route outbounds replaced</string>
+</resources>

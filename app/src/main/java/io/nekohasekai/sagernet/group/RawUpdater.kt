@@ -277,6 +277,7 @@ object RawUpdater : GroupUpdater() {
             }
         val firstResult = applyChanges(null) ?: return
         val preview = pendingRemoval
+        var replacedRoutes = 0
         val removed = if (preview == null) {
             firstResult
         } else {
@@ -287,9 +288,12 @@ object RawUpdater : GroupUpdater() {
                 GroupManager.AffectedRoute(rule.id, rule.displayName(), nodes.getValue(rule.outbound))
             }
             val replacements = userInterface?.confirmSubscriptionRemoval(
-                group, nodes.values.toList(), selectedIndex, affectedRules, nameMap.keys.toList()
+                group, nodes.values.toList(), selectedIndex, affectedRules, nameMap.keys.toList(),
+                preview.nodes.size + preview.retainedIds.size
             ) ?: return
-            applyChanges(preview, replacements) ?: return
+            val result = applyChanges(preview, replacements) ?: return
+            replacedRoutes = replacements.size
+            result
         }
 
         val selected = DataStore.selectedProxy
@@ -297,7 +301,7 @@ object RawUpdater : GroupUpdater() {
         if (selectedRemoved && DataStore.selectedProxy == selected) DataStore.selectedProxy = 0L
         val latest = SagerDatabase.groupDao.getById(proxyGroup.id) ?: return
         userInterface?.onUpdateSuccess(
-            latest, added, updated, removed.map { it.displayName() }, duplicate, byUser, selectedRemoved, nameMap.size
+            latest, added, updated, removed.map { it.displayName() }, duplicate, byUser, selectedRemoved, nameMap.size, replacedRoutes
         )
     }
 

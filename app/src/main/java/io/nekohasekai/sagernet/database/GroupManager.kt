@@ -24,7 +24,8 @@ object GroupManager {
             nodes: List<String>,
             selectedIndex: Int,
             affectedRules: List<AffectedRoute>,
-            replacementNames: List<String>
+            replacementNames: List<String>,
+            previousCount: Int
         ): Map<Long, String>?
         suspend fun alert(message: String)
         suspend fun onUpdateSuccess(
@@ -35,7 +36,8 @@ object GroupManager {
             duplicate: List<String>,
             byUser: Boolean,
             selectedRemoved: Boolean,
-            nodeCount: Int
+            nodeCount: Int,
+            replacedRoutes: Int
         )
 
         suspend fun onUpdateFailure(group: ProxyGroup, message: String)
