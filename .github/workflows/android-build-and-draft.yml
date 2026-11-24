@@ -157,7 +157,6 @@ jobs:
           export ALIAS_PASS="$JC_PREVIEW_KEY_PASS"
           sed -i 's/^PACKAGE_NAME=.*/PACKAGE_NAME=top.lauritz.jc.uipreview.debug/' nb4a.properties
           ./gradlew app:assembleOssRelease
-          echo "ROOM_SCHEMA_9=$(base64 -w0 app/schemas/io.nekohasekai.sagernet.database.SagerDatabase/9.json)"
       - name: Verify signed ARM64 upgrade candidate
         id: verify
         run: |
