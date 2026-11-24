@@ -278,6 +278,7 @@ class ChainSettingsActivity : ProfileSettingsActivity<ChainBean>(R.layout.layout
                 )
             }
 
+            editButton.isVisible = true
             editButton.setOnClickListener {
                 replacing = bindingAdapterPosition
                 selectProfileForAdd.launch(Intent(
