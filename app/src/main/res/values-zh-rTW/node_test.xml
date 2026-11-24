@@ -1,0 +1,4 @@
+<resources>
+    <string name="node_test_none">此節點還沒有測速結果。</string>
+    <string name="node_test_legacy">此歷史結果未記錄測速方式和時間。</string>
+</resources>

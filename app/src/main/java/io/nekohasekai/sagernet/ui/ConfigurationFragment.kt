@@ -848,6 +848,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                         if (profile.status != 0) {
                             profile.status = 0
                             profile.ping = 0
+                            profile.testMethod = null
+                            profile.testedAt = null
                             profile.error = null
                             toClear.add(profile)
                         }
@@ -996,7 +998,11 @@ class ConfigurationFragment @JvmOverloads constructor(
         return false
     }
 
-    inner class TestDialog {
+    private fun testProfiles(groupId: Long, target: ProxyEntity?): List<ProxyEntity> =
+        if (target == null) SagerDatabase.proxyDao.getByGroup(groupId)
+        else listOfNotNull(SagerDatabase.proxyDao.getById(target.id)?.takeIf { it.groupId == groupId })
+
+    inner class TestDialog(private val method: String) {
         val binding = LayoutProgressListBinding.inflate(layoutInflater)
         val builder = MaterialAlertDialogBuilder(requireContext()).setView(binding.root)
             .setPositiveButton(R.string.minimize) { _, _ ->
@@ -1019,6 +1025,8 @@ class ConfigurationFragment @JvmOverloads constructor(
 
         fun update(profile: ProxyEntity) {
             if (dialogStatus.get() != 2) {
+                profile.testMethod = method
+                profile.testedAt = System.currentTimeMillis()
                 results.add(profile)
             }
             runOnMainDispatcher {
@@ -1093,15 +1101,15 @@ class ConfigurationFragment @JvmOverloads constructor(
 
     @OptIn(DelicateCoroutinesApi::class)
     @Suppress("EXPERIMENTAL_API_USAGE")
-    fun pingTest(icmpPing: Boolean) {
+    fun pingTest(icmpPing: Boolean, target: ProxyEntity? = null) {
         if (DataStore.runningTest) return else DataStore.runningTest = true
-        val test = TestDialog()
+        val test = TestDialog("TCPing")
         val dialog = test.builder.show()
         val testJobs = mutableListOf<Job>()
-        val group = DataStore.currentGroup()
+        val group = target?.let { SagerDatabase.groupDao.getById(it.groupId) } ?: DataStore.currentGroup()
 
         val mainJob = runOnDefaultDispatcher {
-            val profilesList = SagerDatabase.proxyDao.getByGroup(group.id).filter {
+            val profilesList = testProfiles(group.id, target).filter {
                 if (icmpPing) {
                     if (it.requireBean().canICMPing()) {
                         return@filter true
@@ -1121,6 +1129,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                         val profile = profiles.poll() ?: break
 
                         profile.status = 0
+                        profile.error = null
                         var address = profile.requireBean().serverAddress
                         if (!address.isIpAddress()) {
                             try {
@@ -1214,12 +1223,12 @@ class ConfigurationFragment @JvmOverloads constructor(
                 testJobs.forEach { it.cancel() }
                 test.results.forEach {
                     try {
-                        ProfileManager.updateProfile(it)
+                        SagerDatabase.proxyDao.updateTestResult(it.id, it.status, it.ping, it.error, it.testMethod, it.testedAt)
                     } catch (e: Exception) {
                         Logs.w(e)
                     }
                 }
-                GroupManager.postReload(DataStore.currentGroupId())
+                GroupManager.postReload(group.id)
                 DataStore.runningTest = false
             }
         }
@@ -1234,15 +1243,15 @@ class ConfigurationFragment @JvmOverloads constructor(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    fun urlTest() {
+    fun urlTest(target: ProxyEntity? = null) {
         if (DataStore.runningTest) return else DataStore.runningTest = true
-        val test = TestDialog()
+        val test = TestDialog("URL Test")
         val dialog = test.builder.show()
         val testJobs = mutableListOf<Job>()
-        val group = DataStore.currentGroup()
+        val group = target?.let { SagerDatabase.groupDao.getById(it.groupId) } ?: DataStore.currentGroup()
 
         val mainJob = runOnDefaultDispatcher {
-            val groupProfiles = SagerDatabase.proxyDao.getByGroup(group.id)
+            val groupProfiles = testProfiles(group.id, target)
             val profilesList = groupProfiles.filterNot { it.isFullSingBoxConfig() }
             if (profilesList.size < groupProfiles.size) {
                 onMainDispatcher {
@@ -1290,7 +1299,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                 testJobs.forEach { it.cancel() }
                 test.results.forEach {
                     try {
-                        SagerDatabase.proxyDao.updateTestResult(it.id, it.status, it.ping, it.error)
+                        SagerDatabase.proxyDao.updateTestResult(it.id, it.status, it.ping, it.error, it.testMethod, it.testedAt)
                     } catch (e: Exception) {
                         Logs.w(e)
                     }
@@ -2127,6 +2136,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                     if (profile.status != 0) {
                         profile.status = 0
                         profile.ping = 0
+                        profile.testMethod = null
+                        profile.testedAt = null
                         profile.error = null
                     }
                 }
@@ -2366,10 +2377,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                     }
                 }
                 profileStatus.setOnClickListener {
-                    val proxyEntity = entity
-                    if (!proxyEntity.isFullSingBoxConfig() && proxyEntity.status == 3) {
-                        alert(proxyEntity.error ?: "<?>").tryToShow()
-                    }
+                    showTestDetails(entity)
                 }
                 profileStatus.isFocusable = false
                 profileMenuButton.setOnClickListener {
@@ -2433,9 +2441,39 @@ class ConfigurationFragment @JvmOverloads constructor(
                 }
             }
 
+            private fun showTestDetails(profile: ProxyEntity) {
+                val parent = parentFragment as? ConfigurationFragment ?: return
+                val message = buildList {
+                    if (profile.status == 1) add(getString(R.string.available, profile.ping))
+                    else if (profile.status > 1) add(profile.error ?: getString(R.string.unavailable))
+                    val time = profile.testedAt
+                    if (time != null && profile.testMethod != null) {
+                        add(profile.testMethod.orEmpty() + " · " +
+                            java.text.DateFormat.getDateTimeInstance().format(java.util.Date(time)))
+                    } else {
+                        add(getString(if (profile.status == 0) R.string.node_test_none else R.string.node_test_legacy))
+                    }
+                }.joinToString("\n")
+                val dialog = MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(profile.displayName())
+                    .setMessage(message)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton("URL Test") { _, _ -> parent.urlTest(profile) }
+                if (profile.requireBean().canTCPing()) {
+                    dialog.setNeutralButton("TCPing") { _, _ -> parent.pingTest(false, profile) }
+                }
+                dialog.show()
+            }
+
             private fun showProfileMenu(anchor: View, proxyEntity: ProxyEntity) {
                 val popup = PopupMenu(requireContext(), anchor)
                 popup.menuInflater.inflate(R.menu.double_column_item_menu, popup.menu)
+                if (!select && !proxyEntity.isFullSingBoxConfig()) {
+                    popup.menu.add(R.string.connection_test).setOnMenuItemClickListener {
+                        showTestDetails(proxyEntity)
+                        true
+                    }
+                }
                 if (layoutManager !is FixedGridLayoutManager) popup.menu.removeItem(R.id.action_share)
                 if (select) popup.menu.removeItem(R.id.action_delete)
                 val canModify = !(DataStore.serviceState.started && DataStore.currentProfile == proxyEntity.id)
@@ -2675,6 +2713,8 @@ class ConfigurationFragment @JvmOverloads constructor(
 
                 profileAddress.text = address
                 val testStatus = if (proxyEntity.isFullSingBoxConfig()) 0 else proxyEntity.status
+                profileStatus.isClickable = !select && testStatus > 0
+                profileStatus.isFocusable = profileStatus.isClickable
                 val trafficRowEmpty =
                     (!showTraffic || testStatus <= 0) && address.isBlank()
                 (trafficText.parent as View).visibility = when {
