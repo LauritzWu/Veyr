@@ -32,9 +32,10 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
         group: ProxyGroup,
         nodes: List<String>,
         selectedIndex: Int,
-        affectedRules: List<Pair<String, String>>
-    ): Boolean = onMainDispatcher {
-        if (context.isFinishing || context.isDestroyed) return@onMainDispatcher false
+        affectedRules: List<GroupManager.AffectedRoute>,
+        replacementNames: List<String>
+    ): Map<Long, String>? = onMainDispatcher {
+        if (context.isFinishing || context.isDestroyed) return@onMainDispatcher null
         suspendCancellableCoroutine { continuation ->
             val names = nodes.mapIndexed { index, name ->
                 if (index == selectedIndex) {
@@ -43,26 +44,59 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
                     name
                 }
             }.joinToString("\n")
-            val message = buildList {
-                add(context.getString(R.string.subscription_refresh_remove_preview, names))
-                if (affectedRules.isNotEmpty()) {
-                    val rules = affectedRules.joinToString("\n") { (rule, node) -> "$rule → $node" }
-                    add(context.getString(R.string.subscription_refresh_affected_rules, rules))
-                }
-            }.joinToString("\n\n")
-            var approved = false
-            val dialog = MaterialAlertDialogBuilder(context)
+            val replacements = mutableMapOf<Long, String>()
+            var approved: Map<Long, String>? = null
+            var picker: androidx.appcompat.app.AlertDialog? = null
+            val builder = MaterialAlertDialogBuilder(context)
                 .setTitle(context.getString(R.string.group_diff, group.displayName()))
-                .setMessage(message)
-                .setPositiveButton(R.string.subscription_refresh_apply) { _, _ -> approved = true }
+                .setPositiveButton(R.string.subscription_refresh_apply) { _, _ -> approved = replacements.toMap() }
                 .setNegativeButton(android.R.string.cancel, null)
-                .create()
+            val summary = context.getString(R.string.subscription_refresh_remove_preview, names)
+            if (affectedRules.isEmpty()) {
+                builder.setMessage(summary)
+            } else {
+                val list = android.widget.LinearLayout(context).apply {
+                    orientation = android.widget.LinearLayout.VERTICAL
+                    val pad = (24 * resources.displayMetrics.density).toInt()
+                    setPadding(pad, pad / 2, pad, 0)
+                }
+                list.addView(android.widget.TextView(context).apply {
+                    text = summary + "\n\n" + context.getString(R.string.subscription_route_repair_hint)
+                })
+                for (rule in affectedRules) {
+                    val button = android.widget.Button(context, null, android.R.attr.borderlessButtonStyle)
+                    button.isAllCaps = false
+                    button.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
+                    fun updateLabel() {
+                        button.text = listOfNotNull(rule.name, rule.oldNode, replacements[rule.id]).joinToString(" → ")
+                    }
+                    updateLabel()
+                    button.setOnClickListener {
+                        val options = listOf(context.getString(R.string.subscription_route_keep_reference)) + replacementNames
+                        val checked = replacements[rule.id]?.let { replacementNames.indexOf(it) + 1 } ?: 0
+                        picker = MaterialAlertDialogBuilder(context)
+                            .setTitle(rule.name)
+                            .setSingleChoiceItems(options.toTypedArray(), checked) { dialog, index ->
+                                if (index == 0) replacements.remove(rule.id)
+                                else replacements[rule.id] = replacementNames[index - 1]
+                                updateLabel()
+                                dialog.dismiss()
+                            }
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show()
+                    }
+                    list.addView(button)
+                }
+                builder.setView(android.widget.ScrollView(context).apply { addView(list) })
+            }
+            val dialog = builder.create()
             val observer = object : DefaultLifecycleObserver {
                 override fun onDestroy(owner: LifecycleOwner) {
                     dialog.dismiss()
                 }
             }
             dialog.setOnDismissListener {
+                picker?.dismiss()
                 context.lifecycle.removeObserver(observer)
                 if (continuation.isActive) continuation.resume(approved)
             }

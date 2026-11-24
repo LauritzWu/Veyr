@@ -172,7 +172,7 @@ object RawUpdater : GroupUpdater() {
         val added = mutableListOf<String>()
         val updated = mutableMapOf<String, String>()
         var pendingRemoval: RemovalPreview? = null
-        suspend fun applyChanges(approved: RemovalPreview?): List<ProxyEntity>? =
+        suspend fun applyChanges(approved: RemovalPreview?, replacements: Map<Long, String> = emptyMap()): List<ProxyEntity>? =
             SagerDatabase.instance.withTransaction {
                 val latest = SagerDatabase.groupDao.getById(proxyGroup.id)
                 val latestSubscription = latest?.subscription
@@ -216,7 +216,8 @@ object RawUpdater : GroupUpdater() {
                         latest.displayName(),
                         nodes,
                         selectedId.takeIf { it in nodes },
-                        affectedRules
+                        affectedRules,
+                        matched.mapValues { it.value.id }
                     )
                     if (approved == null) {
                         pendingRemoval = preview
@@ -253,6 +254,15 @@ object RawUpdater : GroupUpdater() {
 
                 SagerDatabase.proxyDao.insert(toInsert)
                 SagerDatabase.proxyDao.updateProxy(toUpdate)
+                if (replacements.isNotEmpty()) {
+                    val survivingIds = SagerDatabase.proxyDao.getByGroup(latest.id)
+                        .filterNot { it.id in requireNotNull(approved).nodes }
+                        .associate { it.displayName() to it.id }
+                    val routes = requireNotNull(approved).affectedRules.associateBy { it.id }
+                    SagerDatabase.rulesDao.updateRules(replacements.map { (ruleId, target) ->
+                        routes.getValue(ruleId).copy(outbound = survivingIds.getValue(target))
+                    })
+                }
                 SagerDatabase.proxyDao.deleteProxy(toDelete)
                 check(SagerDatabase.proxyDao.countByGroup(latest.id) == nameMap.size.toLong())
 
@@ -274,13 +284,12 @@ object RawUpdater : GroupUpdater() {
             val group = SagerDatabase.groupDao.getById(proxyGroup.id) ?: return
             val selectedIndex = nodes.keys.indexOfFirst { it == preview.selectedId }
             val affectedRules = preview.affectedRules.map { rule ->
-                rule.displayName() to nodes.getValue(rule.outbound)
+                GroupManager.AffectedRoute(rule.id, rule.displayName(), nodes.getValue(rule.outbound))
             }
-            val confirmed = userInterface?.confirmSubscriptionRemoval(
-                group, nodes.values.toList(), selectedIndex, affectedRules
-            ) == true
-            if (!confirmed) return
-            applyChanges(preview) ?: return
+            val replacements = userInterface?.confirmSubscriptionRemoval(
+                group, nodes.values.toList(), selectedIndex, affectedRules, nameMap.keys.toList()
+            ) ?: return
+            applyChanges(preview, replacements) ?: return
         }
 
         val selected = DataStore.selectedProxy
@@ -296,7 +305,8 @@ object RawUpdater : GroupUpdater() {
         val groupName: String,
         val nodes: Map<Long, String>,
         val selectedId: Long?,
-        val affectedRules: List<RuleEntity>
+        val affectedRules: List<RuleEntity>,
+        val retainedIds: Map<String, Long>
     )
 
     private fun AbstractBean.subscriptionConnection(): AbstractBean = clone().apply {

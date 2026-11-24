@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="subscription_route_repair_hint">Tap an affected rule to choose a replacement. Rules left unchanged will refer to a removed node.</string>
+    <string name="subscription_route_keep_reference">Keep original reference</string>
+</resources>

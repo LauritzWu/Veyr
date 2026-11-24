@@ -15,14 +15,17 @@ object GroupManager {
         suspend fun groupUpdated(groupId: Long)
     }
 
+    data class AffectedRoute(val id: Long, val name: String, val oldNode: String)
+
     interface Interface {
         suspend fun confirm(message: String): Boolean
         suspend fun confirmSubscriptionRemoval(
             group: ProxyGroup,
             nodes: List<String>,
             selectedIndex: Int,
-            affectedRules: List<Pair<String, String>>
-        ): Boolean
+            affectedRules: List<AffectedRoute>,
+            replacementNames: List<String>
+        ): Map<Long, String>?
         suspend fun alert(message: String)
         suspend fun onUpdateSuccess(
             group: ProxyGroup,

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="subscription_route_repair_hint">点选受影响的规则，更换出站节点。保留原引用的规则将指向已移除的节点。</string>
+    <string name="subscription_route_keep_reference">保留原引用</string>
+</resources>
