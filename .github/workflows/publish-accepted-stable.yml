@@ -1,0 +1,19 @@
+name: Publish verified Veyr 1.0.12 stable draft
+on:
+  push:
+    branches: ['publish/1.0.12-stable']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the accepted draft and mark it latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api='repos/LauritzWu/Veyr/releases'
+          gh api "$api/456286649" | jq -e '.draft and (.prerelease == false) and .target_commitish == "87a49bc08f81efca95cf111c07b577540c9541b7" and .tag_name == "v1.0.12-stable.26530" and ([.assets[].name] | sort) == ["SHA256SUMS","veyr-1.0.12-stable-arm64-v8a.apk"]'
+          gh api --method PATCH "$api/456286649" -F draft=false -f make_latest=true --silent
+          gh api "$api/latest" --jq .id | grep -Fx 456286649
