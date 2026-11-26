@@ -6,7 +6,10 @@ import android.os.Build
 import android.os.Bundle
 import android.text.SpannableString
 import android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+import android.text.TextPaint
+import android.text.method.LinkMovementMethod
 import android.text.style.BackgroundColorSpan
+import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
 import android.view.MenuItem
 import android.view.View
@@ -39,6 +42,7 @@ class LogcatFragment : ToolbarFragment(R.layout.layout_logcat),
     private lateinit var binding: LayoutLogcatBinding
     private val logAccess = Mutex()
     private var displayedLog: String? = null
+    private var logSnapshot = ""
     private var searchQuery = ""
     private var viewingHistory = false
     private val colorCodes = Regex("""(?:\u001B\[|\[(?=[0-9;]+m))[0-9;]*m""")
@@ -52,6 +56,7 @@ class LogcatFragment : ToolbarFragment(R.layout.layout_logcat),
         toolbar.setOnMenuItemClickListener(this)
 
         binding = LayoutLogcatBinding.bind(view)
+        binding.textview.movementMethod = LinkMovementMethod.getInstance()
 
         if (Build.VERSION.SDK_INT >= 23) {
             binding.textview.breakStrategy = 0 // simple
@@ -60,6 +65,7 @@ class LogcatFragment : ToolbarFragment(R.layout.layout_logcat),
         ViewCompat.setOnApplyWindowInsetsListener(binding.root, ListListener)
 
         displayedLog = null
+        logSnapshot = ""
         viewingHistory = false
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -115,11 +121,10 @@ class LogcatFragment : ToolbarFragment(R.layout.layout_logcat),
             } catch (_: java.io.IOException) {
                 return@withContext null
             }
-            val clean = colorCodes.replace(raw, "").let { log ->
-                if (query.isEmpty()) log
-                else log.lineSequence().filter { it.contains(query, ignoreCase = true) }.joinToString("\n")
-            }
-            if (!force && clean == previous) return@withContext null
+            val snapshot = colorCodes.replace(raw, "")
+            val clean = if (query.isEmpty()) snapshot else snapshot.lineSequence()
+                .filter { it.contains(query, ignoreCase = true) }.joinToString("\n")
+            if (!force && clean == previous) return@withContext RenderedLog(snapshot, clean, null)
 
             val span = SpannableString(
                 if (query.isNotEmpty() && clean.isEmpty()) current.root.context.getString(R.string.logcat_search_empty)
@@ -129,6 +134,16 @@ class LogcatFragment : ToolbarFragment(R.layout.layout_logcat),
             for (line in clean.lineSequence()) {
                 if (line.isNotEmpty()) {
                     span.setSpan(getColorForLine(line), offset, offset + line.length, SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+                ConnectionLog.idRange(line)?.let { range ->
+                    val id = line.substring(range)
+                    span.setSpan(object : ClickableSpan() {
+                        override fun onClick(widget: View) = showConnectionDetails(id)
+
+                        override fun updateDrawState(paint: TextPaint) {
+                            paint.isUnderlineText = true
+                        }
+                    }, offset + range.first, offset + range.last + 1, SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
                 if (query.isNotEmpty()) {
                     var match = line.indexOf(query, ignoreCase = true)
@@ -142,14 +157,49 @@ class LogcatFragment : ToolbarFragment(R.layout.layout_logcat),
                 }
                 offset += line.length + 1
             }
-            clean to span
+            RenderedLog(snapshot, clean, span)
         } ?: return@withLock
         if (query != searchQuery || history != viewingHistory || (!force && current.scroolview.canScrollVertically(1))) return@withLock
 
-        displayedLog = rendered.first
-        current.textview.text = rendered.second
+        logSnapshot = rendered.snapshot
+        val text = rendered.text ?: return@withLock
+        displayedLog = rendered.visible
+        current.textview.text = text
         current.textview.doOnLayout {
             current.scroolview.scrollTo(0, current.textview.height)
+        }
+    }
+
+    private data class RenderedLog(val snapshot: String, val visible: String, val text: SpannableString?)
+
+    private fun showConnectionDetails(id: String) {
+        val snapshot = logSnapshot
+        viewLifecycleOwner.lifecycleScope.launch {
+            val details = withContext(Dispatchers.Default) { ConnectionLog.inspect(snapshot, id) }
+            val missing = getString(R.string.logcat_connection_unobserved)
+            val result = when {
+                details.errors.isNotEmpty() -> getString(R.string.logcat_connection_errors, details.errors.joinToString("\n"))
+                details.transferFinished -> getString(R.string.logcat_connection_transfer_finished)
+                else -> missing
+            }
+            val report = buildList {
+                details.destination?.let { add(getString(R.string.logcat_connection_destination, it)) }
+                details.domain?.let { add(getString(R.string.logcat_connection_domain, it)) }
+                details.app?.let { add(getString(R.string.logcat_connection_app, it)) }
+                add(getString(R.string.logcat_connection_dns, details.dns.joinToString("\n").ifEmpty { missing }))
+                add(getString(R.string.logcat_connection_rules, details.rules.joinToString("\n").ifEmpty { missing }))
+                add(getString(R.string.logcat_connection_outbound, details.outbounds.joinToString("\n").ifEmpty { missing }))
+                add(getString(R.string.logcat_connection_result, result))
+                if (details.rules.isEmpty() || details.dns.isEmpty()) {
+                    add(getString(R.string.logcat_connection_debug_hint))
+                }
+                add(getString(R.string.logcat_connection_excerpt, details.lines.joinToString("\n")))
+            }.joinToString("\n\n")
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(getString(R.string.logcat_connection_title, id))
+                .setMessage(report)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
         }
     }
 
@@ -188,6 +238,7 @@ class LogcatFragment : ToolbarFragment(R.layout.layout_logcat),
                                 Runtime.getRuntime().exec("/system/bin/logcat -c")
                             }
                             displayedLog = null
+                            logSnapshot = ""
                             binding.textview.text = ""
                         } catch (e: kotlinx.coroutines.CancellationException) {
                             throw e
