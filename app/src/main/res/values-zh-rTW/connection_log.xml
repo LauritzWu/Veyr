@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="logcat_connection_title">連線 %1$s</string>
+    <string name="logcat_connection_unobserved">在目前的日誌範圍內未觀察到</string>
+    <string name="logcat_connection_destination">目的地：%1$s</string>
+    <string name="logcat_connection_domain">辨識出的網域：%1$s</string>
+    <string name="logcat_connection_app">應用程式：%1$s</string>
+    <string name="logcat_connection_dns">DNS\n%1$s</string>
+    <string name="logcat_connection_rules">符合的路由規則\n%1$s</string>
+    <string name="logcat_connection_outbound">觀察到的出站\n%1$s</string>
+    <string name="logcat_connection_result">連線結果\n%1$s</string>
+    <string name="logcat_connection_errors">記錄到的錯誤\n%1$s</string>
+    <string name="logcat_connection_transfer_finished">已記錄到上傳或下載結束。</string>
+    <string name="logcat_connection_debug_hint">若缺少 DNS 或路由資訊，可以將日誌等級設為「偵錯（Debug）」，重新連線後重現問題。其他連線 ID 的 DNS 記錄不會顯示在這裡。</string>
+    <string name="logcat_connection_excerpt">這條連線的近期日誌\n%1$s</string>
+</resources>

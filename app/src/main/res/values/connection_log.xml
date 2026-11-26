@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="logcat_connection_title">Connection %1$s</string>
+    <string name="logcat_connection_unobserved">Not observed in this log window</string>
+    <string name="logcat_connection_destination">Destination: %1$s</string>
+    <string name="logcat_connection_domain">Detected domain: %1$s</string>
+    <string name="logcat_connection_app">App: %1$s</string>
+    <string name="logcat_connection_dns">DNS\n%1$s</string>
+    <string name="logcat_connection_rules">Matched route rules\n%1$s</string>
+    <string name="logcat_connection_outbound">Observed outbounds\n%1$s</string>
+    <string name="logcat_connection_result">Result\n%1$s</string>
+    <string name="logcat_connection_errors">Logged errors\n%1$s</string>
+    <string name="logcat_connection_transfer_finished">A transfer direction finished.</string>
+    <string name="logcat_connection_debug_hint">If DNS or route details are missing, set the log level to Debug, reconnect, and reproduce the issue. DNS recorded under a different connection ID will not appear here.</string>
+    <string name="logcat_connection_excerpt">Recent log lines for this connection\n%1$s</string>
+</resources>
