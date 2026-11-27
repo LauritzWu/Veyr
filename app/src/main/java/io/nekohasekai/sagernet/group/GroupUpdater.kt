@@ -131,6 +131,10 @@ abstract class GroupUpdater {
             }
         }
 
+        internal fun requiresOfflineConfirmation(subscription: SubscriptionBean): Boolean =
+            !DataStore.serviceState.connected && (subscription.link?.startsWith("http://") == true ||
+                subscription.updateWhenConnectedOnly)
+
         suspend fun executeUpdate(proxyGroup: ProxyGroup, byUser: Boolean): Boolean {
             return coroutineScope {
                 if (!updating.add(proxyGroup.id)) return@coroutineScope false
@@ -140,9 +144,7 @@ abstract class GroupUpdater {
                     val current = SagerDatabase.groupDao.getById(proxyGroup.id) ?: return@coroutineScope false
                     if (current.type != GroupType.SUBSCRIPTION) return@coroutineScope false
                     val subscription = checkNotNull(current.subscription)
-                    val requiresConfirmation = subscription.link?.startsWith("http://") == true ||
-                        subscription.updateWhenConnectedOnly
-                    if (byUser && requiresConfirmation && !DataStore.serviceState.connected &&
+                    if (byUser && requiresOfflineConfirmation(subscription) &&
                         userInterface?.confirm(app.getString(R.string.update_subscription_warning)) != true
                     ) {
                         return@coroutineScope false

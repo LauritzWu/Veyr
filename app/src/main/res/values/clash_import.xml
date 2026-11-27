@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clash_import_title">Clash import preview</string>
+    <string name="clash_import_count">Nodes to import: %1$d</string>
+    <string name="clash_import_skipped">Unsupported nodes skipped: %1$d</string>
+    <string name="clash_import_filtered">Nodes excluded by filters or deduplication: %1$d</string>
+    <string name="clash_import_nodes_only">Only nodes are imported. Clash policy groups, routing rules and remote providers are skipped.</string>
+    <string name="clash_import_no_nodes">No importable nodes were found. Nodes from remote Clash providers are skipped.</string>
+    <string name="clash_import_apply">Import</string>
+</resources>

@@ -1,12 +1,15 @@
 package io.nekohasekai.sagernet.database
 
 import android.database.sqlite.SQLiteCantOpenDatabaseException
+import androidx.room.withTransaction
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.aidl.TrafficData
 import io.nekohasekai.sagernet.fmt.AbstractBean
 import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.app
 import io.nekohasekai.sagernet.ktx.applyDefaultValues
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.sql.SQLException
 import java.util.*
@@ -73,15 +76,31 @@ object ProfileManager {
     }
 
     suspend fun createProfile(groupId: Long, bean: AbstractBean): ProxyEntity {
+        val profile = createProfile(groupId, bean, SagerDatabase.proxyDao.nextOrder(groupId) ?: 1)
+        iterator { onAdd(profile) }
+        return profile
+    }
+
+    internal suspend fun createProfiles(groupId: Long, beans: List<AbstractBean>) {
+        val profiles = SagerDatabase.instance.withTransaction {
+            check(SagerDatabase.groupDao.getById(groupId) != null)
+            val firstOrder = SagerDatabase.proxyDao.nextOrder(groupId) ?: 1
+            beans.mapIndexed { index, bean -> createProfile(groupId, bean, firstOrder + index) }
+        }
+        withContext(NonCancellable) {
+            profiles.forEach { profile -> iterator { onAdd(profile) } }
+        }
+    }
+
+    private fun createProfile(groupId: Long, bean: AbstractBean, order: Long): ProxyEntity {
         bean.applyDefaultValues()
 
         val profile = ProxyEntity(groupId = groupId).apply {
             id = 0
             putBean(bean)
-            userOrder = SagerDatabase.proxyDao.nextOrder(groupId) ?: 1
+            userOrder = order
         }
         profile.id = SagerDatabase.proxyDao.addProxy(profile)
-        iterator { onAdd(profile) }
         return profile
     }
 

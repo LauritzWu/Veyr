@@ -53,121 +53,11 @@ object RawUpdater : GroupUpdater() {
     ) {
 
         val subscriptionSnapshot = KryoConverters.serialize(subscription)
-        val link = subscription.link
-        var updatedUserInfo: String? = null
-        var updatedName: String? = null
-        val content = try {
-            if (link.startsWith("content://")) {
-                app.contentResolver.openInputStream(link.toUri())?.bufferedReader()?.use { it.readText() }
-                    ?: error("Subscription file unavailable")
-            } else {
-                val response = Libcore.newHttpClient().apply {
-                    trySocks5(DataStore.mixedPort, DataStore.mixedInboundUser, DataStore.mixedInboundPass)
-                    tryH3Direct()
-                    if (DataStore.appTLSVersion == "1.3") restrictedTLS()
-                }.newRequest().apply {
-                    if (DataStore.allowInsecureOnRequest) allowInsecure()
-                    setURL(link)
-                    setUserAgent(subscription.customUserAgent.takeIf { it.isNotBlank() } ?: USER_AGENT)
-                }.execute()
-                val text = Util.getStringBox(response.contentString)
-                updatedUserInfo = Util.getStringBox(response.getHeader("Subscription-Userinfo"))
-                    .ifBlank { findBodyHeader(text, "subscription-userinfo").orEmpty() }
-                updatedName = parseBodyProfileTitle(text).ifBlank {
-                    Util.decodeFilename(Util.getStringBox(response.getHeader("content-disposition")))
-                }.takeIf(String::isNotBlank)
-                text
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            val status = Regex("""\bHTTP ([45][0-9]{2})\b""").find(e.readableMessage)?.groupValues?.get(1)
-            throw SubscriptionUpdateException(
-                if (status != null) app.getString(R.string.subscription_refresh_http_error, status)
-                else app.getString(R.string.subscription_refresh_download_error)
-            )
-        }
-
-        var proxies = try {
-            parseRaw(content).orEmpty()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            throw SubscriptionUpdateException(app.getString(R.string.subscription_refresh_content_error))
-        }
-        if (proxies.isEmpty()) {
-            throw SubscriptionUpdateException(app.getString(R.string.subscription_refresh_content_error))
-        }
-
-        val proxiesMap = LinkedHashMap<String, AbstractBean>()
-        for (proxy in proxies) {
-            var index = 0
-            var name = proxy.displayName()
-            while (proxiesMap.containsKey(name)) {
-                println("Exists name: $name")
-                index++
-                name = name.replace(" (${index - 1})", "")
-                name = "$name ($index)"
-                proxy.name = name
-            }
-            proxiesMap[proxy.displayName()] = proxy
-        }
-        proxies = proxiesMap.values.toList()
-
-        if (subscription.forceResolve) forceResolve(proxies, proxyGroup.id)
-
-        val filterMode = subscription.filterMode ?: SubscriptionFilterMode.DISABLED
-        val filterRegex = subscription.filterRegex ?: ""
-        if (filterMode != SubscriptionFilterMode.DISABLED && filterRegex.isNotBlank()) {
-            val regex = try {
-                filterRegex.toRegex()
-            } catch (_: IllegalArgumentException) {
-                throw SubscriptionUpdateException(app.getString(R.string.subscription_refresh_filter_error))
-            }
-            proxies = when (filterMode) {
-                SubscriptionFilterMode.INCLUDE -> proxies.filter { regex.containsMatchIn(it.displayName()) }
-                SubscriptionFilterMode.EXCLUDE -> proxies.filterNot { regex.containsMatchIn(it.displayName()) }
-                else -> proxies
-            }
-            Logs.d("After filter (mode=$filterMode): ${proxies.size}")
-        }
-
-        val duplicate = ArrayList<String>()
-        if (subscription.deduplication) {
-            Logs.d("Before deduplication: ${proxies.size}")
-            val uniqueProxies = LinkedHashSet<Protocols.Deduplication>()
-            val uniqueNames = HashMap<Protocols.Deduplication, String>()
-            for (_proxy in proxies) {
-                val proxy = Protocols.Deduplication(_proxy, _proxy.javaClass.toString())
-                if (!uniqueProxies.add(proxy)) {
-                    val index = uniqueProxies.indexOf(proxy)
-                    if (uniqueNames.containsKey(proxy)) {
-                        val name = uniqueNames[proxy]!!.replace(" ($index)", "")
-                        if (name.isNotBlank()) {
-                            duplicate.add("$name ($index)")
-                            uniqueNames[proxy] = ""
-                        }
-                    }
-                    duplicate.add(_proxy.displayName() + " ($index)")
-                } else {
-                    uniqueNames[proxy] = _proxy.displayName()
-                }
-            }
-            uniqueProxies.retainAll(uniqueNames.keys)
-            proxies = uniqueProxies.toList().map { it.bean }
-        }
-
-        if (proxies.isEmpty()) {
-            throw SubscriptionUpdateException(app.getString(R.string.subscription_refresh_empty_filter))
-        }
-
-        Logs.d("New profiles: ${proxies.size}")
-
-        val nameMap = proxies.associateBy { bean ->
-            bean.displayName()
-        }
-
-        Logs.d("Unique profiles: ${nameMap.size}")
+        val incoming = prepareSubscription(subscription, proxyGroup.id)
+        val nameMap = incoming.nodes
+        val duplicate = incoming.duplicates
+        val updatedName = incoming.name
+        val updatedUserInfo = incoming.userInfo
 
         val added = mutableListOf<String>()
         val updated = mutableMapOf<String, String>()
@@ -301,6 +191,147 @@ object RawUpdater : GroupUpdater() {
         )
     }
 
+    internal data class PreparedSubscription(
+        val nodes: Map<String, AbstractBean>,
+        val duplicates: List<String>,
+        val name: String?,
+        val userInfo: String?,
+        val clashPreview: ClashImportPreview?,
+    )
+
+    internal suspend fun prepareSubscription(
+        subscription: SubscriptionBean,
+        groupId: Long? = null,
+        previewClash: Boolean = false,
+    ): PreparedSubscription {
+        val link = subscription.link
+        var updatedUserInfo: String? = null
+        var updatedName: String? = null
+        val content = try {
+            if (link.startsWith("content://")) {
+                app.contentResolver.openInputStream(link.toUri())?.bufferedReader()?.use { it.readText() }
+                    ?: error("Subscription file unavailable")
+            } else {
+                val response = Libcore.newHttpClient().apply {
+                    trySocks5(DataStore.mixedPort, DataStore.mixedInboundUser, DataStore.mixedInboundPass)
+                    tryH3Direct()
+                    if (DataStore.appTLSVersion == "1.3") restrictedTLS()
+                }.newRequest().apply {
+                    if (DataStore.allowInsecureOnRequest) allowInsecure()
+                    setURL(link)
+                    setUserAgent(subscription.customUserAgent.takeIf { it.isNotBlank() } ?: USER_AGENT)
+                }.execute()
+                val text = Util.getStringBox(response.contentString)
+                updatedUserInfo = Util.getStringBox(response.getHeader("Subscription-Userinfo"))
+                    .ifBlank { findBodyHeader(text, "subscription-userinfo").orEmpty() }
+                updatedName = parseBodyProfileTitle(text).ifBlank {
+                    Util.decodeFilename(Util.getStringBox(response.getHeader("content-disposition")))
+                }.takeIf(String::isNotBlank)
+                text
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val status = Regex("""\bHTTP ([45][0-9]{2})\b""").find(e.readableMessage)?.groupValues?.get(1)
+            throw SubscriptionUpdateException(
+                if (status != null) app.getString(R.string.subscription_refresh_http_error, status)
+                else app.getString(R.string.subscription_refresh_download_error)
+            )
+        }
+
+        var clashPreview: ClashImportPreview? = null
+        var proxies = try {
+            if (previewClash) {
+                val parsed = parseImport(content)
+                clashPreview = parsed.clashPreview
+                parsed.nodes
+            } else {
+                parseRaw(content).orEmpty()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            throw SubscriptionUpdateException(app.getString(R.string.subscription_refresh_content_error))
+        }
+        if (proxies.isEmpty()) {
+            val message = if (clashPreview == null) R.string.subscription_refresh_content_error
+            else R.string.clash_import_no_nodes
+            throw SubscriptionUpdateException(app.getString(message))
+        }
+
+        val proxiesMap = LinkedHashMap<String, AbstractBean>()
+        for (proxy in proxies) {
+            var index = 0
+            var name = proxy.displayName()
+            while (proxiesMap.containsKey(name)) {
+                println("Exists name: $name")
+                index++
+                name = name.replace(" (${index - 1})", "")
+                name = "$name ($index)"
+                proxy.name = name
+            }
+            proxiesMap[proxy.displayName()] = proxy
+        }
+        proxies = proxiesMap.values.toList()
+
+        if (subscription.forceResolve) forceResolve(proxies, groupId)
+
+        val filterMode = subscription.filterMode ?: SubscriptionFilterMode.DISABLED
+        val filterRegex = subscription.filterRegex ?: ""
+        if (filterMode != SubscriptionFilterMode.DISABLED && filterRegex.isNotBlank()) {
+            val regex = try {
+                filterRegex.toRegex()
+            } catch (_: IllegalArgumentException) {
+                throw SubscriptionUpdateException(app.getString(R.string.subscription_refresh_filter_error))
+            }
+            proxies = when (filterMode) {
+                SubscriptionFilterMode.INCLUDE -> proxies.filter { regex.containsMatchIn(it.displayName()) }
+                SubscriptionFilterMode.EXCLUDE -> proxies.filterNot { regex.containsMatchIn(it.displayName()) }
+                else -> proxies
+            }
+            Logs.d("After filter (mode=$filterMode): ${proxies.size}")
+        }
+
+        val duplicate = ArrayList<String>()
+        if (subscription.deduplication) {
+            Logs.d("Before deduplication: ${proxies.size}")
+            val uniqueProxies = LinkedHashSet<Protocols.Deduplication>()
+            val uniqueNames = HashMap<Protocols.Deduplication, String>()
+            for (_proxy in proxies) {
+                val proxy = Protocols.Deduplication(_proxy, _proxy.javaClass.toString())
+                if (!uniqueProxies.add(proxy)) {
+                    val index = uniqueProxies.indexOf(proxy)
+                    if (uniqueNames.containsKey(proxy)) {
+                        val name = uniqueNames[proxy]!!.replace(" ($index)", "")
+                        if (name.isNotBlank()) {
+                            duplicate.add("$name ($index)")
+                            uniqueNames[proxy] = ""
+                        }
+                    }
+                    duplicate.add(_proxy.displayName() + " ($index)")
+                } else {
+                    uniqueNames[proxy] = _proxy.displayName()
+                }
+            }
+            uniqueProxies.retainAll(uniqueNames.keys)
+            proxies = uniqueProxies.toList().map { it.bean }
+        }
+
+        if (proxies.isEmpty()) {
+            throw SubscriptionUpdateException(app.getString(R.string.subscription_refresh_empty_filter))
+        }
+
+        Logs.d("New profiles: ${proxies.size}")
+
+        val nameMap = proxies.associateBy { bean ->
+            bean.displayName()
+        }
+
+        Logs.d("Unique profiles: ${nameMap.size}")
+
+        return PreparedSubscription(nameMap, duplicate, updatedName, updatedUserInfo, clashPreview)
+    }
+
     private data class RemovalPreview(
         val groupName: String,
         val nodes: Map<Long, String>,
@@ -329,12 +360,27 @@ object RawUpdater : GroupUpdater() {
         return title
     }
 
+    internal data class ImportResult(val nodes: List<AbstractBean>, val clashPreview: ClashImportPreview?)
+
+    internal suspend fun parseImport(text: String, fileName: String = ""): ImportResult {
+        var clashPreview: ClashImportPreview? = null
+        val nodes = parseRaw(text, fileName) { clashPreview = it }.orEmpty()
+        return ImportResult(nodes, clashPreview)
+    }
+
+    suspend fun parseRaw(text: String, fileName: String = ""): List<AbstractBean>? =
+        parseRaw(text, fileName, null)
+
     @Suppress("UNCHECKED_CAST")
-    suspend fun parseRaw(text: String, fileName: String = ""): List<AbstractBean>? {
+    private suspend fun parseRaw(
+        text: String,
+        fileName: String,
+        onClash: ((ClashImportPreview) -> Unit)?,
+    ): List<AbstractBean>? {
 
         val proxies = mutableListOf<AbstractBean>()
 
-        if (text.contains("proxies:")) {
+        if (text.contains("proxies:") || (onClash != null && text.contains("proxy-providers:"))) {
 
             // clash & meta
 
@@ -344,11 +390,16 @@ object RawUpdater : GroupUpdater() {
                     addTypeDescription(TypeDescription(String::class.java, "str"))
                 }.loadAs(text, Map::class.java)
 
+                val entries = yaml["proxies"] as? List<Map<String, Any?>> ?: if (
+                    onClash != null && !yaml.containsKey("proxies") && yaml["proxy-providers"] is Map<*, *>
+                ) {
+                    emptyList()
+                } else {
+                    error(app.getString(R.string.no_proxies_found_in_file))
+                }
                 val globalClientFingerprint = yaml["global-client-fingerprint"]?.toString() ?: ""
 
-                for (proxy in (yaml["proxies"] as? (List<Map<String, Any?>>) ?: error(
-                    app.getString(R.string.no_proxies_found_in_file)
-                ))) {
+                for (proxy in entries) {
                     // Note: YAML numbers parsed as "Long"
 
                     when (proxy["type"] as String) {
@@ -969,6 +1020,7 @@ object RawUpdater : GroupUpdater() {
                         }
                     }
                 }
+                onClash?.invoke(ClashImportPreview(entries.size, proxies.size))
                 return proxies
             } catch (e: YAMLException) {
                 Logs.w(e)
