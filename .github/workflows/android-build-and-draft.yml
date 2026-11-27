@@ -1,7 +1,7 @@
 name: Build signed Android APK and prepare draft
 on:
   push:
-    branches: ['candidate/1.0.14-beta.2']
+    branches: ['candidate/1.0.14-beta.3']
   workflow_dispatch:
     inputs:
       version:
@@ -27,8 +27,8 @@ concurrency:
 env:
   BASE_VERSION: ${{ inputs.version || '1.0.14' }}
   CHANNEL: ${{ inputs.channel || 'beta' }}
-  BETA_ITERATION: ${{ github.event_name == 'push' && '2' || inputs.beta_iteration }}
-  REQUESTED_BUILD_CODE: ${{ inputs.build_code || '26560' }}
+  BETA_ITERATION: ${{ github.event_name == 'push' && '3' || inputs.beta_iteration }}
+  REQUESTED_BUILD_CODE: ${{ inputs.build_code || '26565' }}
 jobs:
   libcore:
     name: Native Build (LibCore)
@@ -115,6 +115,11 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           packages: platforms;android-35 build-tools;35.0.1 ndk;25.0.8775105
+      - name: Test connection-log correlation
+        run: |
+          kotlinc app/src/main/java/io/nekohasekai/sagernet/ui/ConnectionLog.kt \
+            buildScript/tests/ConnectionLogRegression.kt -include-runtime -d "$RUNNER_TEMP/connection-log-test.jar"
+          java -jar "$RUNNER_TEMP/connection-log-test.jar"
       - name: Gradle Build
         env:
           BUILD_PLUGIN: none
@@ -269,6 +274,8 @@ jobs:
             printf 'Veyr %s\n\n' "$version_name"
             printf '已有 Veyr 的用户可以直接覆盖安装。\n\n'
             printf '## 更新内容\n\n'
+            printf '%s\n' '- 点击日志中的连接 ID，查看该连接记录到的应用、DNS、命中规则、出站及错误。'
+            printf '%s\n' '- 导入 Clash YAML 或剪切板中的 Clash 订阅时，可先预览可导入与跳过的节点数。'
             printf '%s\n' '- 包含订阅更新前后对照，完整 sing-box 配置可启用 Tailscale endpoint 和 DNS。'
             printf '\n'
             printf '[构建记录](https://github.com/%s/actions/runs/%s)\n' "$GH_REPO" "$run_id"
