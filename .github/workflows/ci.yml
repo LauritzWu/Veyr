@@ -6,6 +6,7 @@ on:
     branches:
       - '*'
       - 'lauritz/starifly-core-1.14'
+      - 'preview/clash-import-preview'
   pull_request:
 jobs:
   libcore:
@@ -93,6 +94,7 @@ jobs:
       - name: Gradle Build
         env:
           BUILD_PLUGIN: none
+          GH_TOKEN: ${{ github.token }}
           JC_PREVIEW_KEYSTORE: ${{ secrets.JC_PREVIEW_KEYSTORE }}
           JC_PREVIEW_KEYSTORE_PASS: ${{ secrets.JC_PREVIEW_KEYSTORE_PASS }}
           JC_PREVIEW_KEY_ALIAS: ${{ secrets.JC_PREVIEW_KEY_ALIAS }}
@@ -100,7 +102,9 @@ jobs:
         run: |
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
           echo "ndk.dir=${ANDROID_HOME}/ndk/25.0.8775105" >> local.properties
-          export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
+          if [[ "$GITHUB_REF_NAME" != preview/clash-import-preview ]]; then
+            export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
+          fi
           ./run init action gradle
           if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_NAME" == lauritz/starifly-core-1.14 ]]; then
             sed -i "s/^VERSION_CODE=.*/VERSION_CODE=$((5095 + GITHUB_RUN_NUMBER))/" nb4a.properties
@@ -116,6 +120,13 @@ jobs:
             export ALIAS_NAME="$JC_PREVIEW_KEY_ALIAS"
             export ALIAS_PASS="$JC_PREVIEW_KEY_PASS"
             sed -i 's/^PACKAGE_NAME=.*/PACKAGE_NAME=top.lauritz.jc.uipreview/' nb4a.properties
+          fi
+          if [[ "$GITHUB_REF_NAME" == preview/clash-import-preview ]]; then
+            sed -i 's/^PACKAGE_NAME=.*/PACKAGE_NAME=top.lauritz.veyr.importpreview/; s/^VERSION_NAME=.*/VERSION_NAME=1.0.13-import-preview/' nb4a.properties
+            sed -i 's/>Veyr<\//>Veyr Import Preview<\//' app/src/main/res/values/strings.xml
+            kotlinc app/src/main/java/io/nekohasekai/sagernet/ui/ConnectionLog.kt \
+              buildScript/tests/ConnectionLogRegression.kt -include-runtime -d "$RUNNER_TEMP/connection-log-test.jar"
+            java -jar "$RUNNER_TEMP/connection-log-test.jar"
           fi
           ./gradlew app:assembleOssDebug
       - name: Verify parallel-install ARM64 preview
@@ -136,4 +147,25 @@ jobs:
         with:
           name: veyr-preview-arm64-v8a
           path: veyr-preview-arm64-v8a.apk
+          if-no-files-found: error
+      - name: Verify isolated Clash import preview APK
+        if: github.event_name == 'push' && github.ref_name == 'preview/clash-import-preview'
+        run: |
+          mapfile -t apks < <(find app/build/outputs/apk/oss/debug -name '*arm64-v8a*.apk')
+          test "${#apks[@]}" -eq 1
+          tools="$ANDROID_HOME/build-tools/35.0.1"
+          "$tools/aapt" dump badging "${apks[0]}" > apk-badging.txt
+          grep -F "package: name='top.lauritz.veyr.importpreview.debug'" apk-badging.txt
+          grep -F "native-code: 'arm64-v8a'" apk-badging.txt
+          "$tools/apksigner" verify --print-certs "${apks[0]}"
+          "$tools/zipalign" -c -P 16 4 "${apks[0]}"
+          cp "${apks[0]}" veyr-import-preview-arm64-v8a.apk
+          sha256sum veyr-import-preview-arm64-v8a.apk > SHA256SUMS
+      - uses: actions/upload-artifact@v5
+        if: github.event_name == 'push' && github.ref_name == 'preview/clash-import-preview'
+        with:
+          name: veyr-import-preview-arm64
+          path: |
+            veyr-import-preview-arm64-v8a.apk
+            SHA256SUMS
           if-no-files-found: error
