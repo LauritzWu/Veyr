@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.LayoutRes
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.*
 import com.github.shadowsocks.plugin.Empty
 import com.github.shadowsocks.plugin.fragment.AlertDialogFragment
@@ -23,6 +24,8 @@ import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.SubscriptionFilterMode
 import io.nekohasekai.sagernet.database.*
+import io.nekohasekai.sagernet.group.GroupUpdater
+import io.nekohasekai.sagernet.group.SubscriptionUpdateException
 import io.nekohasekai.sagernet.database.preference.OnPreferenceDataStoreChangeListener
 import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.applyDefaultValues
@@ -30,6 +33,11 @@ import io.nekohasekai.sagernet.ktx.onMainDispatcher
 import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
 import io.nekohasekai.sagernet.widget.ListListener
 import io.nekohasekai.sagernet.widget.OutboundPreference
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
 import moe.matsuri.nb4a.ui.SimpleMenuPreference
 
@@ -41,6 +49,7 @@ class GroupSettingsActivity(
 
     private lateinit var frontProxyPreference: OutboundPreference
     private lateinit var landingProxyPreference: OutboundPreference
+    private var saveJob: Job? = null
 
     fun ProxyGroup.init() {
         DataStore.groupName = name ?: ""
@@ -234,9 +243,7 @@ class GroupSettingsActivity(
         override fun AlertDialog.Builder.prepare(listener: DialogInterface.OnClickListener) {
             setTitle(R.string.unsaved_changes_prompt)
             setPositiveButton(R.string.yes) { _, _ ->
-                runOnDefaultDispatcher {
-                    (requireActivity() as GroupSettingsActivity).saveAndExit()
-                }
+                (requireActivity() as GroupSettingsActivity).requestSave()
             }
             setNegativeButton(R.string.no) { _, _ ->
                 requireActivity().finish()
@@ -321,17 +328,40 @@ class GroupSettingsActivity(
 
     }
 
-    suspend fun saveAndExit() {
+    private fun requestSave() {
+        if (saveJob?.isActive == true) return
+        saveJob = lifecycleScope.launch {
+            try {
+                if (withContext(Dispatchers.IO) { saveGroup() }) finish()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logs.w("Group save failed: ${e.javaClass.simpleName}")
+                Toast.makeText(
+                    this@GroupSettingsActivity,
+                    (e as? SubscriptionUpdateException)?.message ?: getString(R.string.subscription_refresh_storage_error),
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
+        }
+    }
+
+    private suspend fun saveGroup(): Boolean {
 
         val editingId = DataStore.editingId
         if (editingId == 0L) {
-            GroupManager.createGroup(ProxyGroup().apply { serialize() })
-        } else if (needSave()) {
-            val entity = SagerDatabase.groupDao.getById(DataStore.editingId)
-            if (entity == null) {
-                finish()
-                return
+            val group = ProxyGroup().apply { serialize() }
+            if (group.type == GroupType.SUBSCRIPTION && intent.getBooleanExtra(EXTRA_FROM_CLIPBOARD, false)) {
+                if (GroupUpdater.requiresOfflineConfirmation(checkNotNull(group.subscription)) &&
+                    !awaitImportConfirmation(R.string.confirm, getString(R.string.update_subscription_warning), R.string.yes)
+                ) return false
+                return GroupManager.createPastedSubscriptionGroup(group) { preview, count ->
+                    confirmClashImport(preview, count)
+                }
             }
+            GroupManager.createGroup(group)
+        } else if (needSave()) {
+            val entity = SagerDatabase.groupDao.getById(editingId) ?: return true
             val keepUserInfo = (entity.type == GroupType.SUBSCRIPTION &&
                     DataStore.groupType == GroupType.SUBSCRIPTION &&
                     entity.subscription?.link == DataStore.subscriptionLink)
@@ -341,8 +371,7 @@ class GroupSettingsActivity(
             GroupManager.updateGroup(entity.apply { serialize() })
         }
 
-        finish()
-
+        return true
     }
 
     val child by lazy { supportFragmentManager.findFragmentById(R.id.settings) as MyPreferenceFragmentCompat }
@@ -416,9 +445,7 @@ class GroupSettingsActivity(
             }
 
             R.id.action_apply -> {
-                runOnDefaultDispatcher {
-                    activity?.saveAndExit()
-                }
+                activity?.requestSave()
                 true
             }
 

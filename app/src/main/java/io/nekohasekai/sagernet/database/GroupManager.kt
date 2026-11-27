@@ -1,9 +1,14 @@
 package io.nekohasekai.sagernet.database
 
+import androidx.room.withTransaction
 import io.nekohasekai.sagernet.GroupType
 import io.nekohasekai.sagernet.bg.SubscriptionUpdater
+import io.nekohasekai.sagernet.group.ClashImportPreview
 import io.nekohasekai.sagernet.group.GroupUpdater
+import io.nekohasekai.sagernet.group.RawUpdater
 import io.nekohasekai.sagernet.ktx.applyDefaultValues
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 object GroupManager {
 
@@ -101,6 +106,36 @@ object GroupManager {
             GroupUpdater.startUpdate(group, true)
         }
         return group
+    }
+
+    internal suspend fun createPastedSubscriptionGroup(
+        group: ProxyGroup,
+        confirm: suspend (ClashImportPreview, Int) -> Boolean,
+    ): Boolean {
+        val subscription = checkNotNull(group.subscription)
+        val incoming = RawUpdater.prepareSubscription(subscription, previewClash = true)
+        val preview = incoming.clashPreview
+        if (preview != null && !confirm(preview, incoming.nodes.size)) return false
+
+        SagerDatabase.instance.withTransaction {
+            group.userOrder = SagerDatabase.groupDao.nextOrder() ?: 1
+            if (group.name?.startsWith("Subscription #") == true) {
+                incoming.name?.let { group.name = it }
+            }
+            incoming.userInfo?.let { subscription.subscriptionUserinfo = it }
+            subscription.pendingRemoval = false
+            subscription.lastUpdated = (System.currentTimeMillis() / 1000).toInt()
+            group.id = SagerDatabase.groupDao.createGroup(group.applyDefaultValues())
+            val nodes = incoming.nodes.values.mapIndexed { index, bean ->
+                ProxyEntity(groupId = group.id, userOrder = index + 1L).apply { putBean(bean) }
+            }
+            SagerDatabase.proxyDao.insert(nodes)
+        }
+        withContext(NonCancellable) {
+            iterator { groupAdd(group) }
+            SubscriptionUpdater.reconfigureUpdater()
+        }
+        return true
     }
 
     suspend fun updateGroup(group: ProxyGroup) {

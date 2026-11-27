@@ -148,7 +148,6 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.zip.ZipInputStream
 import kotlin.collections.set
 import androidx.appcompat.app.AlertDialog
-import io.nekohasekai.sagernet.database.SubscriptionBean
 import kotlin.math.abs
 
 class ConfigurationFragment @JvmOverloads constructor(
@@ -580,8 +579,8 @@ class ConfigurationFragment @JvmOverloads constructor(
 
     private suspend fun importFileNodes(contents: String, fileName: String) {
         try {
-            val profiles = withContext(Dispatchers.IO) { RawUpdater.parseRaw(contents, fileName) }.orEmpty()
-            saveImportedFileProfiles(profiles)
+            val parsed = withContext(Dispatchers.IO) { RawUpdater.parseImport(contents, fileName) }
+            applyImportPreview(parsed, R.string.no_proxies_found_in_file)
         } catch (e: CancellationException) {
             throw e
         } catch (e: SubscriptionFoundException) {
@@ -589,6 +588,16 @@ class ConfigurationFragment @JvmOverloads constructor(
         } catch (_: Exception) {
             snackbar(R.string.file_import_failed).show()
         }
+    }
+
+    private suspend fun applyImportPreview(parsed: RawUpdater.ImportResult, emptyMessage: Int) {
+        val preview = parsed.clashPreview
+        if (parsed.nodes.isEmpty()) {
+            snackbar(if (preview == null) emptyMessage else R.string.clash_import_no_nodes).show()
+            return
+        }
+        if (preview != null && !requireContext().confirmClashImport(preview, parsed.nodes.size)) return
+        withContext(Dispatchers.IO) { import(parsed.nodes) }
     }
 
     private suspend fun saveImportedFileProfiles(profiles: List<AbstractBean>) {
@@ -601,9 +610,7 @@ class ConfigurationFragment @JvmOverloads constructor(
 
     suspend fun import(proxies: List<AbstractBean>) {
         val targetId = DataStore.selectedGroupForImport()
-        for (proxy in proxies) {
-            ProfileManager.createProfile(targetId, proxy)
-        }
+        ProfileManager.createProfiles(targetId, proxies)
         onMainDispatcher {
             DataStore.editingGroup = targetId
             snackbar(
@@ -680,16 +687,12 @@ class ConfigurationFragment @JvmOverloads constructor(
                 val text = SagerNet.getClipboardText()
                 if (text.isBlank()) {
                     snackbar(getString(R.string.clipboard_empty)).show()
-                } else runOnDefaultDispatcher {
+                } else viewLifecycleOwner.lifecycleScope.launch {
                     try {
-                        val proxies = RawUpdater.parseRaw(text)
-                        if (proxies.isNullOrEmpty()) {
-                            onMainDispatcher {
-                                snackbar(getString(R.string.no_proxies_found_in_clipboard)).show()
-                            }
-                        } else {
-                            import(proxies)
-                        }
+                        val parsed = withContext(Dispatchers.IO) { RawUpdater.parseImport(text) }
+                        applyImportPreview(parsed, R.string.no_proxies_found_in_clipboard)
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: SubscriptionFoundException) {
                         if (e.link.startsWith("sn://")) {
                             onMainDispatcher {
@@ -703,12 +706,6 @@ class ConfigurationFragment @JvmOverloads constructor(
                                     withContext(Dispatchers.IO) { fetchAirportName(subscriptionLink) }
                                 }
 
-                            val group = ProxyGroup(type = GroupType.SUBSCRIPTION)
-                            val subscription = SubscriptionBean()
-                            group.subscription = subscription
-                            subscription.link = subscriptionLink
-                            subscription.autoUpdate = false
-                            group.name = airportName ?: ""
                             onMainDispatcher {
                                 startActivity(Intent(requireContext(), GroupSettingsActivity::class.java).apply {
                                     putExtra(GroupSettingsActivity.EXTRA_FROM_CLIPBOARD, true)

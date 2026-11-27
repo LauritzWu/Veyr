@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clash_import_title">Clash 匯入預覽</string>
+    <string name="clash_import_count">將匯入 %1$d 個節點</string>
+    <string name="clash_import_skipped">略過 %1$d 個不支援的節點</string>
+    <string name="clash_import_filtered">篩選或去重排除了 %1$d 個節點</string>
+    <string name="clash_import_nodes_only">僅匯入節點。Clash 策略群組、分流規則與遠端提供者不會匯入。</string>
+    <string name="clash_import_no_nodes">沒有可匯入的節點。Clash 遠端提供者中的節點不會匯入。</string>
+    <string name="clash_import_apply">匯入</string>
+</resources>

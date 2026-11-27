@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clash_import_title">Clash 导入预览</string>
+    <string name="clash_import_count">将导入 %1$d 个节点</string>
+    <string name="clash_import_skipped">跳过 %1$d 个不支持的节点</string>
+    <string name="clash_import_filtered">筛选或去重排除了 %1$d 个节点</string>
+    <string name="clash_import_nodes_only">仅导入节点。Clash 策略组、分流规则和远程提供者不会导入。</string>
+    <string name="clash_import_no_nodes">没有可导入的节点。Clash 远程提供者中的节点不会导入。</string>
+    <string name="clash_import_apply">导入</string>
+</resources>
